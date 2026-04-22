@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # Base de datos PostgreSQL
+  db:
+    image: postgres:17-alpine
+    container_name: postgres-dev
+    # TODO: Completar configuración del contenedor
+    # 1. Definir variables de entorno para POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
+    # 2. Exponer puerto por defecto de PostgreSQL
+    # 3. Configurar volumen para persistencia de datos
+    # 4. Definir healthcheck para asegurar disponibilidad
+
+    # Backend (NestJS)
+  backend:
+    # TODO: Configurar servicio de backend para desarrollo
+    # 1. Definir build context y Dockerfile
+    # 2. IMPORTANTE: Usar 'target: builder' o development stage
+    # 3. Montar volumen de código fuente para habilitar HOT-RELOAD
+    # 4. Exponer puerto API (3000)
+    # 5. Definir variables de entorno (DB Host, usuario, pass, JWT Secret)
+    depends_on:
+      db:
+        # TODO: Esperar a que la DB esté saludable (service_healthy)
+        condition: service_started # Cambiar esto a la condición correcta
+
+  # Frontend (Next.js)
+  frontend:
+    # TODO: Configurar servicio de frontend para desarrollo
+    # 1. Definir build context
+    # 2. Usar target de desarrollo
+    # 3. Exponer puerto de desarrollo Next.js (3001)
+    # 4. Montar volúmenes necesarios
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+
+# TODO: Definir volúmenes nombrados para persistencia
+# volumes: ...
+
+# TODO: Definir redes (opcional en compose v2 pero recomendado para aislamiento)
+# networks: ...

@@ -1,0 +1,2993 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+backend/
+  src/
+    auth/
+      decorators/
+        match.decorator.ts
+      dto/
+        login.dto.ts
+        register.dto.ts
+      entities/
+        user.entity.ts
+      strategies/
+        jwt.strategy.ts
+      auth.controller.spec.ts
+      auth.controller.ts
+      auth.module.ts
+      auth.service.spec.ts
+      auth.service.ts
+    config/
+      typeorm.config.ts
+    pokemon/
+      pokemon.controller.ts
+      pokemon.gateway.TODO.ts
+      pokemon.module.ts
+      pokemon.service.spec.ts
+      pokemon.service.ts
+    app.controller.spec.ts
+    app.controller.ts
+    app.module.ts
+    app.service.ts
+    main.ts
+  test/
+    app.e2e-spec.ts
+    jest-e2e.json
+  .dockerignore
+  .env.example
+  .prettierrc
+  Dockerfile
+  eslint.config.mjs
+  nest-cli.json
+  package.json
+  README.md
+  tsconfig.build.json
+  tsconfig.json
+frontend/
+  public/
+    favicon.ico
+  src/
+    api/
+      client.ts
+    assets/
+      main.css
+    router/
+      index.ts
+    stores/
+      auth.ts
+    views/
+      DashboardView.vue
+      HomeView.vue
+      LoginView.vue
+      RegisterView.vue
+    App.vue
+    env.d.ts
+    main.ts
+  .dockerignore
+  .editorconfig
+  .env.example
+  .gitattributes
+  .gitignore
+  .prettierrc.json
+  Dockerfile
+  env.d.ts
+  eslint.config.ts
+  index.html
+  package.json
+  postcss.config.js
+  README.md
+  tailwind.config.js
+  tsconfig.app.json
+  tsconfig.json
+  tsconfig.node.json
+  vite.config.ts
+.env.example
+.gitignore
+auth_diagram.png
+docker-compose.dev.yml
+docker-compose.test.yml
+OWASP_REQUIREMENTS.md
+README.md
+TECHNICAL_ASSESSMENT.md
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="backend/src/auth/decorators/match.decorator.ts">
+import {
+    registerDecorator,
+    ValidationArguments,
+    ValidationOptions,
+    ValidatorConstraint,
+    ValidatorConstraintInterface,
+} from 'class-validator';
+
+export function Match(property: string, validationOptions?: ValidationOptions) {
+    return (object: any, propertyName: string) => {
+        registerDecorator({
+            target: object.constructor,
+            propertyName,
+            options: validationOptions,
+            constraints: [property],
+            validator: MatchConstraint,
+        });
+    };
+}
+
+@ValidatorConstraint({ name: 'Match' })
+export class MatchConstraint implements ValidatorConstraintInterface {
+    validate(value: any, args: ValidationArguments) {
+        const [relatedPropertyName] = args.constraints;
+        const relatedValue = (args.object as any)[relatedPropertyName];
+        return value === relatedValue;
+    }
+
+    defaultMessage(args: ValidationArguments) {
+        const [relatedPropertyName] = args.constraints;
+        return `${args.property} must match ${relatedPropertyName}`;
+    }
+}
+</file>
+
+<file path="backend/src/auth/dto/login.dto.ts">
+import { IsString, IsNotEmpty, MinLength } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+
+export class LoginDto {
+    @ApiProperty({
+        example: 'user123',
+        description: 'The username of the user',
+    })
+    @IsString()
+    @IsNotEmpty()
+    username: string;
+
+    @ApiProperty({
+        example: 'password123',
+        description: 'The password of the user',
+        minLength: 6,
+    })
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(6)
+    password: string;
+}
+</file>
+
+<file path="backend/src/auth/dto/register.dto.ts">
+import { IsString, IsNotEmpty, MinLength } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { Match } from '../decorators/match.decorator';
+
+export class RegisterDto {
+    @ApiProperty({
+        example: 'user123',
+        description: 'The username of the new user',
+    })
+    @IsString()
+    @IsNotEmpty()
+    username: string;
+
+    @ApiProperty({
+        example: 'password123',
+        description: 'The password of the new user',
+        minLength: 6,
+    })
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(6)
+    password: string;
+
+    @ApiProperty({
+        example: 'password123',
+        description: 'Confirm password',
+    })
+    @IsString()
+    @IsNotEmpty()
+    @Match('password', { message: 'Passwords do not match' })
+    confirmPassword: string;
+}
+</file>
+
+<file path="backend/src/auth/entities/user.entity.ts">
+import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+
+@Entity('users')
+export class User {
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @Column({ unique: true })
+    username: string;
+
+    @Column()
+    password: string;
+}
+</file>
+
+<file path="backend/src/auth/auth.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+
+describe('AuthController', () => {
+  let controller: AuthController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [AuthController],
+      providers: [AuthService],
+    }).compile();
+
+    controller = module.get<AuthController>(AuthController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
+</file>
+
+<file path="backend/src/auth/auth.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { AuthService } from './auth.service';
+
+describe('AuthService', () => {
+  let service: AuthService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [AuthService],
+    }).compile();
+
+    service = module.get<AuthService>(AuthService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+});
+</file>
+
+<file path="backend/src/config/typeorm.config.ts">
+import { registerAs } from '@nestjs/config';
+import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { join } from 'path';
+
+export default registerAs(
+  'database',
+  (): TypeOrmModuleOptions => ({
+    type: 'postgres',
+    host: process.env.DATABASE_HOST || 'localhost',
+    port: parseInt(process.env.DATABASE_PORT || '5432', 10),
+    username: process.env.DATABASE_USER || 'technical-test',
+    password: process.env.DATABASE_PASSWORD || '',
+    database: process.env.DATABASE_NAME || 'technical-test_db',
+
+    // Esta configuración buscará cualquier archivo que termine en .entity.ts o .entity.js
+    entities: [join(__dirname, '/../**/*.entity{.ts,.js}')],
+
+    // synchronize: true only desarrollo.
+    synchronize: process.env.NODE_ENV !== 'production',
+
+    // Opcional: si quieres ver las consultas SQL en la consola
+    logging: process.env.NODE_ENV !== 'production',
+  }),
+);
+</file>
+
+<file path="backend/src/pokemon/pokemon.controller.ts">
+import { Controller, Get, Delete, Param, UseGuards } from '@nestjs/common';
+import { PokemonService } from './pokemon.service';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
+
+@ApiTags('pokemon')
+@ApiBearerAuth()
+@UseGuards(AuthGuard('jwt'))
+@Controller('pokemon')
+export class PokemonController {
+    constructor(private readonly pokemonService: PokemonService) { }
+
+    @Get()
+    @ApiOperation({ summary: 'Get all stored pokemons' })
+    @ApiResponse({ status: 200, description: 'Returns list of pokemons.' })
+    findAll() {
+        return this.pokemonService.findAll();
+    }
+
+    async getRandom() {
+        return { url: await this.pokemonService.getRandomSprite() };
+    }
+
+    @Delete('all')
+    @ApiOperation({ summary: 'Delete all pokemons' })
+    @ApiResponse({ status: 200, description: 'All pokemons deleted.' })
+    removeAll() {
+        return this.pokemonService.removeAll();
+    }
+
+
+    @Delete(':id')
+    @ApiOperation({ summary: 'Delete a pokemon sprite' })
+    @ApiResponse({ status: 200, description: 'Pokemon sprite deleted.' })
+    remove(@Param('id') id: string) {
+        return this.pokemonService.remove(+id);
+    }
+}
+</file>
+
+<file path="backend/src/pokemon/pokemon.gateway.TODO.ts">
+// TODO: Crear este archivo - PokemonGateway con WebSocket
+// Este archivo debe implementar comunicación en tiempo real usando Socket.io
+//
+// Requisitos:
+// 1. Usar decorador @WebSocketGateway() con CORS configurado
+// 2. Implementar OnGatewayConnection y OnGatewayDisconnect
+// 3. AUTENTICAR conexiones WebSocket validando JWT token
+// 4. Implementar evento 'request-sprite':
+//    - Llam ar a pokemonService.getRandomSprite()
+//    - Emitir el resultado al cliente con evento 'sprite-served'
+//    - Manejar errores apropiadamente
+// 5. Implementar evento 'delete-sprite' si es necesario
+//
+// Ejemplo de estructura:
+//
+// import { WebSocketGateway, SubscribeMessage, OnGatewayConnection } from '@nestjs/websockets';
+// import { Socket } from 'socket.io';
+// import { JwtService } from '@nestjs/jwt';
+// import { PokemonService } from './pokemon.service';
+//
+// @WebSocketGateway({ cors: { origin: /* configurar */ } })
+// export class PokemonGateway implements OnGatewayConnection, OnGatewayDisconnect {
+//   constructor(
+//     private readonly pokemonService: PokemonService,
+//     private readonly jwtService: JwtService
+//   ) {}
+//
+//   async handleConnection(client: Socket) {
+//     // TODO: Validar JWT token del cliente
+//     // Si no es válido, desconectar: client.disconnect()
+//   }
+//
+//   handleDisconnect(client: Socket) {
+//     // TODO: Manejar desconexión
+//   }
+//
+//   @SubscribeMessage('request-sprite')
+//   async requestSprite(client: Socket) {
+//     // TODO: Implementar lógica
+//   }
+// }
+</file>
+
+<file path="backend/src/pokemon/pokemon.service.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { PokemonService } from './pokemon.service';
+
+describe('PokemonService', () => {
+  let service: PokemonService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [PokemonService],
+    }).compile();
+
+    service = module.get<PokemonService>(PokemonService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+});
+</file>
+
+<file path="backend/src/app.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
+describe('AppController', () => {
+  let appController: AppController;
+
+  beforeEach(async () => {
+    const app: TestingModule = await Test.createTestingModule({
+      controllers: [AppController],
+      providers: [AppService],
+    }).compile();
+
+    appController = app.get<AppController>(AppController);
+  });
+
+  describe('root', () => {
+    it('should return "Hello World!"', () => {
+      expect(appController.getHello()).toBe('Hello World!');
+    });
+  });
+});
+</file>
+
+<file path="backend/src/app.controller.ts">
+import { Controller, Get } from '@nestjs/common';
+import { AppService } from './app.service';
+
+@Controller()
+export class AppController {
+  constructor(private readonly appService: AppService) {}
+
+  @Get()
+  getHello(): string {
+    return this.appService.getHello();
+  }
+}
+</file>
+
+<file path="backend/src/app.module.ts">
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { AuthModule } from './auth/auth.module';
+import { PokemonModule } from './pokemon/pokemon.module';
+import typeorm from './config/typeorm.config';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [typeorm],
+    }),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) =>
+        configService.getOrThrow('database'),
+    }),
+    AuthModule,
+    PokemonModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule { }
+</file>
+
+<file path="backend/src/app.service.ts">
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class AppService {
+  getHello(): string {
+    return 'Hello World!';
+  }
+}
+</file>
+
+<file path="backend/src/main.ts">
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import { AppModule } from './app.module';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  app.enableCors({
+    origin: 'http://localhost:5173',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+  }));
+
+  const config = new DocumentBuilder()
+    .setTitle('Daka Technical Assessment')
+    .setDescription('The Daka Technical Assessment API description')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
+
+  await app.listen(process.env.PORT ?? 3000);
+}
+bootstrap();
+</file>
+
+<file path="backend/test/app.e2e-spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
+import * as request from 'supertest';
+import { App } from 'supertest/types';
+import { AppModule } from './../src/app.module';
+
+describe('AppController (e2e)', () => {
+  let app: INestApplication<App>;
+
+  beforeEach(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+  });
+
+  it('/ (GET)', () => {
+    return request(app.getHttpServer())
+      .get('/')
+      .expect(200)
+      .expect('Hello World!');
+  });
+});
+</file>
+
+<file path="backend/test/jest-e2e.json">
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  }
+}
+</file>
+
+<file path="backend/.dockerignore">
+node_modules
+dist
+.git
+.gitignore
+.env
+README.md
+</file>
+
+<file path="backend/.env.example">
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_USER=${POSTGRES_USER}
+DATABASE_PASSWORD=${POSTGRES_PASSWORD}
+DATABASE_NAME=${POSTGRES_DB}
+</file>
+
+<file path="backend/.prettierrc">
+{
+  "singleQuote": true,
+  "trailingComma": "all"
+}
+</file>
+
+<file path="backend/eslint.config.mjs">
+// @ts-check
+import eslint from '@eslint/js';
+import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
+
+export default tseslint.config(
+  {
+    ignores: ['eslint.config.mjs'],
+  },
+  eslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
+  eslintPluginPrettierRecommended,
+  {
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.jest,
+      },
+      sourceType: 'commonjs',
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-floating-promises': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'warn'
+    },
+  },
+);
+</file>
+
+<file path="backend/nest-cli.json">
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "deleteOutDir": true
+  }
+}
+</file>
+
+<file path="backend/package.json">
+{
+  "name": "backend",
+  "version": "0.0.1",
+  "description": "",
+  "author": "",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/mapped-types": "*",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/platform-socket.io": "^11.1.9",
+    "@nestjs/swagger": "^11.2.3",
+    "@nestjs/typeorm": "^11.0.0",
+    "@nestjs/websockets": "^11.1.9",
+    "@types/bcrypt": "^6.0.0",
+    "@types/passport-jwt": "^4.0.1",
+    "axios": "^1.13.2",
+    "bcrypt": "^6.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.16.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "socket.io": "^4.8.1",
+    "swagger-ui-express": "^5.0.1",
+    "typeorm": "^0.3.26"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
+    "@eslint/js": "^9.18.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.1",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.10.7",
+    "@types/supertest": "^6.0.2",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.2",
+    "globals": "^16.0.0",
+    "jest": "^30.0.0",
+    "prettier": "^3.4.2",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node"
+  }
+}
+</file>
+
+<file path="backend/README.md">
+<p align="center">
+  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
+</p>
+
+
+  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
+    <p align="center">
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
+<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
+<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
+<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
+<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
+  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
+    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
+  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
+</p>
+  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
+  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+
+## Description
+
+[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+
+## Project setup
+
+```bash
+npm install
+```
+
+## Compile and run the project
+
+```bash
+# development
+$ npm run start
+
+# watch mode
+$ npm run start:dev
+
+# production mode
+$ npm run start:prod
+```
+
+## Run tests
+
+```bash
+# unit tests
+$ npm run test
+
+# e2e tests
+$ npm run test:e2e
+
+# test coverage
+$ npm run test:cov
+```
+
+## Deployment
+
+When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+
+If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+
+```bash
+npm install -g @nestjs/mau
+mau deploy
+```
+
+With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+
+## Resources
+
+Check out a few resources that may come in handy when working with NestJS:
+
+- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
+- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
+- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
+- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
+- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
+- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
+- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
+- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+
+## Support
+
+Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+
+## Stay in touch
+
+- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
+- Website - [https://nestjs.com](https://nestjs.com/)
+- Twitter - [@nestframework](https://twitter.com/nestframework)
+
+## License
+
+Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+</file>
+
+<file path="backend/tsconfig.build.json">
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
+}
+</file>
+
+<file path="backend/tsconfig.json">
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "noFallthroughCasesInSwitch": false
+  }
+}
+</file>
+
+<file path="frontend/src/api/client.ts">
+import axios from 'axios';
+
+const client = axios.create({
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
+
+client.interceptors.request.use(
+    (config) => {
+        const token = sessionStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        if (error.response && error.response.status === 401) {
+            sessionStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+        return Promise.reject(error);
+    },
+);
+
+export default client;
+</file>
+
+<file path="frontend/src/assets/main.css">
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom App Styles */
+body {
+    background-color: #f3f4f6; /* gray-100 */
+    font-family: 'Inter', sans-serif;
+}
+</file>
+
+<file path="frontend/src/views/HomeView.vue">
+<script setup lang="ts">
+// Página de inicio modernizada
+</script>
+
+<template>
+  <div class="min-h-screen bg-gray-50 flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl w-full text-center space-y-8">
+      
+      <!-- Hero Section -->
+      <div>
+        <h1 class="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
+          <span class="block">Bienvenido a la</span>
+          <span class="block text-indigo-600">Aplicación Daka</span>
+        </h1>
+        <p class="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
+          Explora nuestra prueba técnica full-stack diseñada con tecnologías modernas: NestJS, Vue 3, TailwindCSS y WebSockets.
+        </p>
+      </div>
+
+      <!-- Features Section -->
+      <div class="mt-10">
+        <div class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-2">
+          
+          <div class="pt-6">
+            <div class="flow-root bg-white rounded-lg px-6 pb-8">
+              <div class="-mt-6">
+                <div>
+                  <span class="inline-flex items-center justify-center p-3 bg-indigo-500 rounded-md shadow-lg">
+                    <!-- Heroicon name: outline/lock-closed -->
+                    <svg class="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </span>
+                </div>
+                <h3 class="mt-8 text-lg font-medium text-gray-900 tracking-tight">Autenticación Robusta</h3>
+                <p class="mt-5 text-base text-gray-500">
+                  Sistema completo de Login y Registro seguro con JWT, validaciones con Zod y protección de rutas.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-6">
+            <div class="flow-root bg-white rounded-lg px-6 pb-8">
+              <div class="-mt-6">
+                <div>
+                  <span class="inline-flex items-center justify-center p-3 bg-indigo-500 rounded-md shadow-lg">
+                    <!-- Heroicon name: outline/lightning-bolt -->
+                    <svg class="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </span>
+                </div>
+                <h3 class="mt-8 text-lg font-medium text-gray-900 tracking-tight">WebSockets & Sprites</h3>
+                <p class="mt-5 text-base text-gray-500">
+                  Gestión en tiempo real de Sprites de Pokémon, con animaciones fluidas y actualizaciones instantáneas.
+                </p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- CTA Buttons -->
+      <div class="mt-10 flex justify-center gap-4 flex-wrap">
+        <router-link to="/login" class="w-full sm:w-auto flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 md:py-4 md:text-lg md:px-10 transition duration-150 ease-in-out transform hover:scale-105">
+          Iniciar Sesión
+        </router-link>
+        <router-link to="/register" class="w-full sm:w-auto flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 md:py-4 md:text-lg md:px-10 transition duration-150 ease-in-out transform hover:scale-105">
+          Registrarse
+        </router-link>
+        <router-link to="/dashboard" class="w-full sm:w-auto flex items-center justify-center px-8 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 md:py-4 md:text-lg md:px-10 transition duration-150 ease-in-out transform hover:scale-105">
+          Ver Dashboard
+        </router-link>
+      </div>
+
+    </div>
+  </div>
+</template>
+
+<style scoped>
+/* Tailwind CSS handles all styling */
+</style>
+</file>
+
+<file path="frontend/src/App.vue">
+<script setup lang="ts">
+import { onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const router = useRouter()
+const authStore = useAuthStore()
+
+const handleLogout = async () => {
+  await authStore.logout()
+  router.push('/login')
+}
+
+// Watcher para detectar eliminación manual del token
+let intervalId: number
+onMounted(() => {
+  intervalId = window.setInterval(() => {
+    const storedToken = sessionStorage.getItem('token')
+    if (authStore.token && !storedToken) {
+      handleLogout()
+    }
+  }, 1000)
+})
+
+onUnmounted(() => {
+  clearInterval(intervalId)
+})
+</script>
+
+<template>
+  <div class="h-full">
+    <router-view />
+  </div>
+</template>
+
+<style>
+/* Global resets if needed, but Tailwind handles most */
+html, body, #app {
+  height: 100%;
+  margin: 0;
+}
+</style>
+</file>
+
+<file path="frontend/src/env.d.ts">
+/// <reference types="vite/client" />
+
+declare module '*.vue' {
+  import type { DefineComponent } from 'vue'
+  const component: DefineComponent<{}, {}, any>
+  export default component
+}
+</file>
+
+<file path="frontend/src/main.ts">
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+
+import App from './App.vue'
+import router from './router'
+
+import { VueQueryPlugin } from '@tanstack/vue-query'
+import './assets/main.css'
+
+const app = createApp(App)
+
+app.use(createPinia())
+app.use(router)
+app.use(VueQueryPlugin)
+
+app.mount('#app')
+</file>
+
+<file path="frontend/.dockerignore">
+node_modules
+dist
+.git
+.gitignore
+.env
+README.md
+</file>
+
+<file path="frontend/.editorconfig">
+[*.{js,jsx,mjs,cjs,ts,tsx,mts,cts,vue,css,scss,sass,less,styl}]
+charset = utf-8
+indent_size = 2
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+end_of_line = lf
+max_line_length = 100
+</file>
+
+<file path="frontend/.env.example">
+
+</file>
+
+<file path="frontend/.gitattributes">
+* text=auto eol=lf
+</file>
+
+<file path="frontend/.gitignore">
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+.DS_Store
+dist
+dist-ssr
+coverage
+*.local
+
+/cypress/videos/
+/cypress/screenshots/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+*.tsbuildinfo
+</file>
+
+<file path="frontend/.prettierrc.json">
+{
+  "$schema": "https://json.schemastore.org/prettierrc",
+  "semi": false,
+  "singleQuote": true,
+  "printWidth": 100
+}
+</file>
+
+<file path="frontend/env.d.ts">
+/// <reference types="vite/client" />
+</file>
+
+<file path="frontend/eslint.config.ts">
+import { globalIgnores } from 'eslint/config'
+import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript'
+import pluginVue from 'eslint-plugin-vue'
+import skipFormatting from '@vue/eslint-config-prettier/skip-formatting'
+
+// To allow more languages other than `ts` in `.vue` files, uncomment the following lines:
+// import { configureVueProject } from '@vue/eslint-config-typescript'
+// configureVueProject({ scriptLangs: ['ts', 'tsx'] })
+// More info at https://github.com/vuejs/eslint-config-typescript/#advanced-setup
+
+export default defineConfigWithVueTs(
+  {
+    name: 'app/files-to-lint',
+    files: ['**/*.{ts,mts,tsx,vue}'],
+  },
+
+  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
+
+  pluginVue.configs['flat/essential'],
+  vueTsConfigs.recommended,
+  skipFormatting,
+)
+</file>
+
+<file path="frontend/index.html">
+<!DOCTYPE html>
+<html lang="">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vite App</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
+</file>
+
+<file path="frontend/package.json">
+{
+  "name": "frontend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "preview": "vite preview",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --build",
+    "lint": "eslint . --fix",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@tanstack/vue-query": "^5.92.1",
+    "@vee-validate/zod": "^4.15.1",
+    "axios": "^1.13.2",
+    "pinia": "^3.0.3",
+    "socket.io-client": "^4.8.1",
+    "vee-validate": "^4.15.1",
+    "vue": "^3.5.18",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@tsconfig/node20": "^20.1.8",
+    "@tsconfig/node22": "^22.0.2",
+    "@types/node": "^22.16.5",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "@vue/eslint-config-prettier": "^10.2.0",
+    "@vue/eslint-config-typescript": "^14.6.0",
+    "@vue/tsconfig": "^0.7.0",
+    "autoprefixer": "^10.4.22",
+    "eslint": "^9.31.0",
+    "eslint-plugin-vue": "~10.3.0",
+    "jiti": "^2.4.2",
+    "npm-run-all2": "^8.0.4",
+    "postcss": "^8.5.6",
+    "prettier": "3.6.2",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.8.0",
+    "vite": "^7.0.6",
+    "vite-plugin-vue-devtools": "^8.0.0",
+    "vue-tsc": "^3.0.4",
+    "zod": "^3.24.1"
+  }
+}
+</file>
+
+<file path="frontend/postcss.config.js">
+export default {
+    plugins: {
+        tailwindcss: {},
+        autoprefixer: {},
+    },
+}
+</file>
+
+<file path="frontend/README.md">
+# frontend
+
+This template should help get you started developing with Vue 3 in Vite.
+
+## Recommended IDE Setup
+
+[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+
+## Type Support for `.vue` Imports in TS
+
+TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+
+## Customize configuration
+
+See [Vite Configuration Reference](https://vite.dev/config/).
+
+## Project Setup
+
+```sh
+npm install
+```
+
+### Compile and Hot-Reload for Development
+
+```sh
+npm run dev
+```
+
+### Type-Check, Compile and Minify for Production
+
+```sh
+npm run build
+```
+
+### Lint with [ESLint](https://eslint.org/)
+
+```sh
+npm run lint
+```
+</file>
+
+<file path="frontend/tailwind.config.js">
+/** @type {import('tailwindcss').Config} */
+export default {
+    content: [
+        "./index.html",
+        "./src/**/*.{vue,js,ts,jsx,tsx}",
+    ],
+    theme: {
+        extend: {},
+    },
+    plugins: [],
+}
+</file>
+
+<file path="frontend/tsconfig.app.json">
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "include": [
+    "env.d.ts",
+    "src/**/*",
+    "src/**/*.vue"
+  ],
+  "exclude": [
+    "src/**/__tests__/*"
+  ],
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "types": [
+      "node"
+    ]
+  }
+}
+</file>
+
+<file path="frontend/tsconfig.json">
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    },
+    {
+      "path": "./tsconfig.app.json"
+    }
+  ]
+}
+</file>
+
+<file path="frontend/tsconfig.node.json">
+{
+  "extends": "@tsconfig/node20/tsconfig.json",
+  "include": [
+    "vite.config.*",
+    "vitest.config.*",
+    "cypress.config.*",
+    "nightwatch.conf.*",
+    "playwright.config.*",
+    "eslint.config.*"
+  ],
+  "compilerOptions": {
+    "noEmit": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": [
+      "node"
+    ]
+  }
+}
+</file>
+
+<file path="frontend/vite.config.ts">
+import { fileURLToPath, URL } from 'node:url'
+
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import vueDevTools from 'vite-plugin-vue-devtools'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [
+    vue(),
+    vueDevTools(),
+  ],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url))
+    },
+  },
+})
+</file>
+
+<file path=".env.example">
+POSTGRES_DB=technical-test_db
+POSTGRES_USER=technical-test
+POSTGRES_PASSWORD=1234
+POSTGRES_INITDB_ARGS="--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+</file>
+
+<file path=".gitignore">
+node_modules/
+dist/
+.tmp
+.idea
+.env
+coverage/
+.npm
+.vscode
+.nyc_output
+k6-results
+</file>
+
+<file path="docker-compose.dev.yml">
+version: '3.8'
+
+services:
+  # Base de datos PostgreSQL
+  db:
+    image: postgres:17-alpine
+    container_name: postgres-dev
+    # TODO: Completar configuración del contenedor
+    # 1. Definir variables de entorno para POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
+    # 2. Exponer puerto por defecto de PostgreSQL
+    # 3. Configurar volumen para persistencia de datos
+    # 4. Definir healthcheck para asegurar disponibilidad
+
+    # Backend (NestJS)
+  backend:
+    # TODO: Configurar servicio de backend para desarrollo
+    # 1. Definir build context y Dockerfile
+    # 2. IMPORTANTE: Usar 'target: builder' o development stage
+    # 3. Montar volumen de código fuente para habilitar HOT-RELOAD
+    # 4. Exponer puerto API (3000)
+    # 5. Definir variables de entorno (DB Host, usuario, pass, JWT Secret)
+    depends_on:
+      db:
+        # TODO: Esperar a que la DB esté saludable (service_healthy)
+        condition: service_started # Cambiar esto a la condición correcta
+
+  # Frontend (Vue.js)
+  frontend:
+    # TODO: Configurar servicio de frontend para desarrollo
+    # 1. Definir build context
+    # 2. Usar target de desarrollo
+    # 3. Exponer puerto de desarrollo Vite (5173)
+    # 4. Montar volúmenes necesarios
+    environment:
+      - VITE_API_URL=http://localhost:3000
+
+# TODO: Definir volúmenes nombrados para persistencia
+# volumes: ...
+
+# TODO: Definir redes (opcional en compose v2 pero recomendado para aislamiento)
+# networks: ...
+</file>
+
+<file path="docker-compose.test.yml">
+version: '3.8'
+
+services:
+  # Base de datos (Simulación Producción)
+  db:
+    image: postgres:17-alpine
+    container_name: postgres-test
+    # TODO: Configurar base de datos segura
+    # 1. Asegurar que solo sea accesible por backend (red interna)
+    # 2. Configurar usuario y contraseña seguros (desde .env)
+    # 3. Configurar healthcheck
+
+    # Backend (Production Build)
+  backend:
+    # TODO: Configurar backend para producción/test
+    # 1. Usar build 'target: production' del Dockerfile
+    # 2. NO montar volúmenes de código fuente (código inmutable)
+    # 3. Configurar NODE_ENV=production
+    # 4. Pasar variables de entorno de producción
+    depends_on:
+      - db
+
+  # Frontend (Nginx Server)
+  frontend:
+    # TODO: Configurar frontend servido por Nginx
+    # 1. Usar build 'target: production' del Dockerfile
+    # 2. Exponer puerto 80
+    # 3. Asegurar comunicación con backend
+    depends_on:
+      - backend
+
+# TODO: Definir red interna (bridge) para que los servicios se comuniquen sin exponer DB
+networks: # internal-network: ...
+</file>
+
+<file path="OWASP_REQUIREMENTS.md">
+# Requisitos de Seguridad - OWASP Top 10 (2021)
+
+## 🔒 Introducción
+
+Este documento detalla los requisitos de seguridad que **DEBES** implementar en la prueba técnica, basados en el OWASP Top 10 2021. El cumplimiento de estos requisitos representa el 25% de tu evaluación.
+
+---
+
+## A01:2021 – Broken Access Control
+
+### ❌ Riesgos
+
+- Acceso no autorizado a recursos protegidos
+- Usuarios elevando privilegios
+- Bypass de autenticación
+
+### ✅ Implementaciones Requeridas
+
+#### Backend
+
+```typescript
+// Proteger TODAS las rutas que requieren autenticación
+@Controller('pokemon')
+export class PokemonController {
+    
+    @Get()
+    @UseGuards(AuthGuard('jwt'))  // ✅ Guardia obligatoria
+    @ApiBearerAuth()
+    findAll(@Request() req) {
+        // Solo usuarios autenticados pueden acceder
+        const userId = req.user.id;
+        // ...
+    }
+}
+```
+
+#### Frontend
+
+```typescript
+// Route guards en router/index.ts
+router.beforeEach((to, from, next) => {
+    const token = /* obtener token de forma segura */;
+    
+    if (to.meta.requiresAuth && !token) {
+        next('/login');  // ✅ Redirigir si no autenticado
+    } else if (to.meta.requiresGuest && token) {
+        next('/dashboard');  // ✅ Redirigir si ya autenticado
+    } else {
+        next();
+    }
+});
+```
+
+---
+
+## A02:2021 – Cryptographic Failures
+
+### ❌ Riesgos
+
+- Contraseñas en texto plano
+- Secretos hardcodeados
+- Tokens sin cifrar
+- Almacenamiento inseguro de datos sensibles
+
+### ✅ Implementaciones Requeridas
+
+#### 1. Hash de Contraseñas
+
+```typescript
+// ✅ SIEMPRE usar bcrypt
+import * as bcrypt from 'bcrypt';
+
+const SALT_ROUNDS = 10;  // Mínimo recomendado
+
+async register(dto: RegisterDto) {
+    const hashedPassword = await bcrypt.hash(dto.password, SALT_ROUNDS);
+    
+    const user = this.userRepository.create({
+        username: dto.username,
+        password: hashedPassword,  // ✅ Nunca guardar en texto plano
+    });
+    
+    await this.userRepository.save(user);
+}
+
+async validatePassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
+    return bcrypt.compare(plainPassword, hashedPassword);
+}
+```
+
+#### 2. Secretos en Variables de Entorno
+
+```typescript
+// ❌ INCORRECTO - Secreto hardcodeado
+const secret = 'secretKey';
+
+// ✅ CORRECTO - Variable de entorno
+const secret = process.env.JWT_SECRET;
+
+if (!secret) {
+    throw new Error('JWT_SECRET must be defined in environment variables');
+}
+```
+
+#### 3. JWT Seguro
+
+```typescript
+// auth.module.ts
+JwtModule.registerAsync({
+    imports: [ConfigModule],
+    inject: [ConfigService],
+    useFactory: (configService: ConfigService) => {
+        const secret = configService.get<string>('JWT_SECRET');
+        if (!secret) {
+            throw new Error('JWT_SECRET is required');
+        }
+        
+        return {
+            secret: secret,
+            signOptions: { 
+                expiresIn: '1h',  // ✅ Token con expiración
+                algorithm: 'HS256'
+            },
+        };
+    },
+}),
+```
+
+#### 4. Almacenamiento Seguro de Tokens (Frontend)
+
+> [!CAUTION]
+> **Evalúa y documenta tu decisión**
+
+**Opciones:**
+
+| Método | Seguridad | XSS | CSRF | Recomendado |
+|--------|-----------|-----|------|-------------|
+| `localStorage` | ❌ Bajo | Vulnerable | Protegido | No |
+| `sessionStorage` | ⚠️ Medio | Vulnerable | Protegido | Solo si no hay opción mejor |
+| HTTP-Only Cookies | ✅ Alto | Protegido | Requiere SameSite | **Sí** |
+
+**Implementación recomendada: HTTP-Only Cookies**
+
+```typescript
+// Backend: Enviar token en cookie
+@Post('login')
+async login(@Body() dto: LoginDto, @Res() response) {
+    const { accessToken, user } = await this.authService.login(dto);
+    
+    response.cookie('accessToken', accessToken, {
+        httpOnly: true,     // ✅ No accesible por JavaScript
+        secure: true,       // ✅ Solo HTTPS (producción)
+        sameSite: 'strict', // ✅ Protección CSRF
+        maxAge: 3600000     // 1 hora
+    });
+    
+    return response.json({ user });
+}
+```
+
+---
+
+## A03:2021 – Injection
+
+### ❌ Riesgos
+
+- SQL Injection
+- NoSQL Injection
+- Command Injection
+- XSS (Cross-Site Scripting)
+
+### ✅ Implementaciones Requeridas
+
+#### 1. Validación de Entrada
+
+```typescript
+// DTO con validación estricta
+import { IsString, IsNotEmpty, MinLength, MaxLength, Matches } from 'class-validator';
+
+export class RegisterDto {
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(3)
+    @MaxLength(20)
+    @Matches(/^[a-zA-Z0-9_]+$/, {
+        message: 'Username can only contain letters, numbers and underscores'
+    })
+    username: string;
+
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(6)
+    @MaxLength(100)
+    password: string;
+}
+```
+
+#### 2. Global Validation Pipe
+
+```typescript
+// main.ts
+app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,           // ✅ Elimina propiedades no definidas en DTO
+    forbidNonWhitelisted: true, // ✅ Rechaza propiedades extras
+    transform: true,
+}));
+```
+
+#### 3. Uso Seguro de TypeORM
+
+```typescript
+// ✅ CORRECTO - TypeORM previene injection
+const user = await this.userRepository.findOneBy({ 
+    username: dto.username 
+});
+
+// ❌ NUNCA usar raw queries con input del usuario sin sanitizar
+// await this.userRepository.query(`SELECT * FROM users WHERE username = '${username}'`);
+```
+
+---
+
+## A04:2021 – Insecure Design
+
+### ✅ Implementaciones Requeridas
+
+1. **Separación de Ambientes**: dev y test (prod) con configuraciones diferentes
+2. **Rate Limiting**: Prevenir fuerza bruta (opcional pero valorado)
+3. **Validación de Business Logic**: Validar no solo datos sino lógica de negocio
+
+---
+
+## A05:2021 – Security Misconfiguration
+
+### ❌ Riesgos
+
+- CORS mal configurado
+- Errores que revelan stack traces
+- Configuraciones por defecto inseguras
+- Servicios innecesarios expuestos
+
+### ✅ Implementaciones Requeridas
+
+#### 1. CORS Específico
+
+```typescript
+// main.ts
+app.enableCors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',  // ✅ Específico
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+});
+
+// ❌ NUNCA usar:
+// app.enableCors({ origin: '*' });
+```
+
+#### 2. WebSocket CORS
+
+```typescript
+// ✅ CORRECTO
+@WebSocketGateway({ 
+    cors: { 
+        origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+        credentials: true 
+    } 
+})
+
+// ❌ INCORRECTO
+@WebSocketGateway({ cors: { origin: '*' } })
+```
+
+#### 3. Manejo de Errores sin Revelar Detalles
+
+```typescript
+// ✅ CORRECTO
+try {
+    // operación
+} catch (error) {
+    this.logger.error('Database error details', error);  // Log interno
+    throw new InternalServerErrorException(
+        'An error occurred. Please try again later'  // ✅ Mensaje genérico al usuario
+    );
+}
+
+// ❌ INCORRECTO
+catch (error) {
+    throw new Error(error.message);  // ❌ Revela detalles internos
+}
+```
+
+#### 4. Variables de Entorno
+
+```typescript
+// .env.example (sin valores reales)
+JWT_SECRET=your-strong-secret-here-min-32-characters
+DATABASE_PASSWORD=your-database-password
+NODE_ENV=development
+
+// .env (en .gitignore, con valores reales)
+JWT_SECRET=a8f5f167f44f4964e6c998dee827110c
+DATABASE_PASSWORD=StrongP@ssw0rd123
+NODE_ENV=production
+```
+
+---
+
+## A07:2021 – Identification and Authentication Failures
+
+### ❌ Riesgos
+
+- Contraseñas débiles permitidas
+- Falta de rate limiting
+- Mensajes de error que revelan si usuario existe
+- Tokens que no expiran
+
+### ✅ Implementaciones Requeridas
+
+#### 1. Validación de Contraseña Robusta
+
+```typescript
+export class RegisterDto {
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(8, { message: 'Password must be at least 8 characters long' })
+    @Matches(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+        { 
+            message: 'Password must contain uppercase, lowercase, number and special character' 
+        }
+    )
+    password: string;
+}
+```
+
+#### 2. Mensajes de Error Genéricos
+
+```typescript
+// ✅ CORRECTO
+async login(dto: LoginDto) {
+    const user = await this.userRepository.findOneBy({ username: dto.username });
+    
+    if (!user || !(await bcrypt.compare(dto.password, user.password))) {
+        // ✅ Mensaje genérico, no revela si usuario existe
+        throw new UnauthorizedException('Invalid credentials');
+    }
+    
+    return this.generateToken(user);
+}
+
+// ❌ INCORRECTO
+if (!user) {
+    throw new NotFoundException('User not found');  // ❌ Revela que usuario no existe
+}
+if (!validPassword) {
+    throw new UnauthorizedException('Invalid password');  // ❌ Revela que usuario existe
+}
+```
+
+#### 3. JWT con Expiración
+
+```typescript
+signOptions: { 
+    expiresIn: '1h'  // ✅ Token expira en 1 hora
+}
+```
+
+#### 4. Rate Limiting (Valorado)
+
+```typescript
+// Instalación: npm install @nestjs/throttler
+
+// app.module.ts
+ThrottlerModule.forRoot([{
+    ttl: 60000,  // 60 segundos
+    limit: 10,   // 10 requests máximo
+}]),
+
+// auth.controller.ts
+@Post('login')
+@Throttle({ default: { limit: 5, ttl: 60000 } })  // 5 intentos por minuto
+async login(@Body() dto: LoginDto) {
+    // ...
+}
+```
+
+---
+
+## A08:2021 – Software and Data Integrity Failures
+
+### ✅ Implementaciones Requeridas
+
+1. **Verificar integridad de dependencias**: Usar `package-lock.json`
+2. **No ejecutar código no confiable**
+3. **Validar datos de APIs externas**
+
+```typescript
+// Validar respuesta de PokeAPI
+async getRandomSprite() {
+    try {
+        const response = await axios.get(`https://pokeapi.co/api/v2/pokemon/${id}`);
+        
+        // ✅ Validar estructura de respuesta
+        if (!response.data?.sprites?.front_default) {
+            throw new Error('Invalid response from PokeAPI');
+        }
+        
+        return {
+            id: Date.now(),
+            url: response.data.sprites.front_default,
+            name: response.data.name
+        };
+    } catch (error) {
+        this.logger.error('Error fetching pokemon', error);
+        throw new BadGatewayException('Unable to fetch pokemon from external API');
+    }
+}
+```
+
+---
+
+## A09:2021 – Security Logging and Monitoring Failures
+
+### ✅ Implementaciones Requeridas
+
+```typescript
+// Usar Logger de NestJS
+import { Logger } from '@nestjs/common';
+
+export class AuthService {
+    private readonly logger = new Logger(AuthService.name);
+    
+    async login(dto: LoginDto) {
+        this.logger.log(`Login attempt for user: ${dto.username}`);
+        
+        try {
+            // ... lógica
+            this.logger.log(`Successful login for user: ${dto.username}`);
+        } catch (error) {
+            this.logger.error(`Failed login for user: ${dto.username}`, error.stack);
+            throw error;
+        }
+    }
+}
+```
+
+---
+
+## A10:2021 – Server-Side Request Forgery (SSRF)
+
+### ✅ Implementaciones Requeridas
+
+```typescript
+// ✅ CORRECTO - URL fija y confiable
+const POKEAPI_BASE = 'https://pokeapi.co/api/v2';
+
+async getRandomSprite() {
+    const id = Math.floor(Math.random() * 898) + 1;
+    
+    // ✅ URL controlada, no usa input del usuario
+    const url = `${POKEAPI_BASE}/pokemon/${id}`;
+    
+    const response = await axios.get(url);
+    // ...
+}
+
+// ❌ NUNCA permitir URLs arbitrarias del usuario
+// const url = req.body.pokemonUrl;  // ❌ Peligroso!
+// await axios.get(url);
+```
+
+---
+
+## 🎯 Checklist de Seguridad
+
+Antes de entregar, verifica que hayas implementado:
+
+- [ ] **Autenticación**: Hash de contraseñas con bcrypt
+- [ ] **Autenticación**: JWT con expiración y secret en env
+- [ ] **Autenticación**: Guards en todas las rutas protegidas
+- [ ] **Validación**: DTOs con class-validator en todos los endpoints
+- [ ] **Validación**: Global validation pipe configurado
+- [ ] **CORS**: Configurado específicamente (no `*`)
+- [ ] **Errores**: Try/catch en todas las operaciones async
+- [ ] **Errores**: Mensajes genéricos al usuario, logs detallados
+- [ ] **Secretos**: Todas las variables sensibles en .env
+- [ ] **Secretos**: .env en .gitignore
+- [ ] **WebSocket**: Autenticación JWT al conectar
+- [ ] **WebSocket**: CORS específico
+- [ ] **Logging**: Logger en operaciones críticas
+- [ ] **Contraseñas**: Validación de complejidad
+
+---
+
+## 📚 Recursos Adicionales
+
+- [OWASP Top 10 2021](https://owasp.org/Top10/)
+- [NestJS Security](https://docs.nestjs.com/security/authentication)
+- [JWT Best Practices](https://tools.ietf.org/html/rfc8725)
+- [bcrypt Documentation](https://www.npmjs.com/package/bcrypt)
+
+---
+
+> [!WARNING]
+> El incumplimiento de estos requisitos resultará en una **reducción significativa** de tu puntuación. La seguridad no es opcional.
+
+**¡Implementa seguridad desde el inicio, no como un afterthought!** 🔒
+</file>
+
+<file path="TECHNICAL_ASSESSMENT.md">
+# Prueba Técnica Full-Stack: Tiendas DAKA
+
+## 📋 Descripción General
+
+Esta es una prueba técnica diseñada para evaluar tus habilidades como desarrollador Full-Stack. Deberás completar una aplicación web que incluye autenticación de usuarios y visualización en tiempo real de sprites de Pokémon utilizando **NestJS** (backend) y **Vue.js 3** (frontend).
+
+## ⏱️ Tiempo Estimado
+
+**4-6 horas** para completar todas las funcionalidades requeridas.
+
+---
+
+## 🎯 Objetivos de la Prueba
+
+Implementar:
+
+1. **Sistema de Autenticación Completo** (Backend + Frontend)
+2. **Integración con API Externa** (PokeAPI)
+3. **Comunicación en Tiempo Real** (WebSockets)
+4. **Infraestructura Docker** (Multi-stage builds, ambientes dev/test)
+5. **Mejores Prácticas de Seguridad** (OWASP Top 10)
+6. **Manejo Robusto de Errores**
+
+---
+
+## 📦 Funcionalidades a Implementar
+
+### 1. Autenticación de Usuarios (Backend)
+
+**Ubicación**: `backend/src/auth/`
+
+Debes completar la implementación del módulo de autenticación:
+
+#### ✅ Registro de Usuarios (`AuthService.register()`)
+
+- Validar que el usuario no exista
+- **Hash de contraseña** usando bcrypt
+- Guardar usuario en PostgreSQL
+- Retornar mensaje de éxito
+
+#### ✅ Login (`AuthService.login()`)
+
+- Validar credenciales
+- Comparar password hasheado
+- **Generar JWT token**
+- Retornar token y datos del usuario
+
+#### ✅ JWT Strategy
+
+- Completar `jwt.strategy.ts`
+- Implementar validación de token
+- Verificar que el usuario existe
+
+#### ✅ Guards de Protección
+
+- Proteger rutas con `@UseGuards(AuthGuard('jwt'))`
+- Implementar el guard correctamente
+
+#### ✅ Manejo de Errores HTTP
+
+- `UnauthorizedException` para credenciales inválidas
+- `BadRequestException` para usuarios duplicados
+- Try/catch en todas las operaciones async
+
+---
+
+### 2. Autenticación de Usuarios (Frontend)
+
+**Ubicación**: `frontend/src/`
+
+Debes crear las siguientes vistas:
+
+#### ✅ Vista de Login (`views/LoginView.vue`)
+
+- Formulario con username y password
+- Validación con **Vee-Validate + Zod**
+- Llamar al endpoint `/auth/login`
+- Guardar token (evalúa la mejor opción: sessionStorage, localStorage, cookies)
+- Redirigir a Dashboard al tener éxito
+- Mostrar errores al usuario
+
+#### ✅ Vista de Registro (`views/RegisterView.vue`)
+
+- Formulario con username, password, confirmPassword
+- Validación de contraseña (mínimo 6 caracteres)
+- Validar que las contraseñas coincidan
+- Llamar al endpoint `/auth/register`
+- Redirigir a login tras registro exitoso
+
+#### ✅ Pinia Store (`stores/auth.ts`)
+
+- Completar métodos `login()`, `register()`, `logout()`
+- Gestionar estado del usuario
+- Gestionar token de autenticación
+
+#### ✅ Route Guards (`router/index.ts`)
+
+- Proteger ruta `/dashboard` (requiere autenticación)
+- Redirigir a login si no está autenticado
+- Prevenir acceso a login/register si ya está autenticado
+
+---
+
+### 3. Sistema de Pokémon en Tiempo Real
+
+#### Backend
+
+**Ubicación**: `backend/src/pokemon/`
+
+#### ✅ PokemonService
+
+- Implementar método `getRandomSprite()`:
+  - Generar ID aleatorio (1-898)
+  - Llamar a PokeAPI: `https://pokeapi.co/api/v2/pokemon/{id}`
+  - **Manejo de errores**: try/catch, validar respuesta
+  - Extraer `sprites.front_default` y `name`
+  - Retornar objeto `{ id, url, name }`
+
+#### ✅ PokemonGateway (WebSocket)
+
+- **Crear archivo** `pokemon.gateway.ts`
+- Implementar `@WebSocketGateway()`
+- **Autenticación de WebSocket**: validar JWT en conexión
+- Evento `request-sprite`: obtener sprite y emitir al cliente
+- Evento `delete-sprite`: manejar eliminación
+- **Manejo de errores**: desconectar clientes sin token válido
+
+#### Frontend
+
+**Ubicación**: `frontend/src/views/`
+
+#### ✅ Vista Dashboard (`views/DashboardView.vue`)
+
+- Conectar a WebSocket con autenticación (enviar JWT)
+- Botón "Request Sprite" que emita evento `request-sprite`
+- Mostrar lista de sprites recibidos
+- Botón "Delete" por cada sprite
+- Botón "Delete All" para limpiar lista
+- **Animaciones**: entrada suave de sprites
+- **Responsive design**: grid que se adapte a móvil/desktop
+
+---
+
+### 4. Infraestructura Docker
+
+#### ✅ Backend Dockerfile (Multi-stage)
+
+**Ubicación**: `backend/Dockerfile`
+
+Debes completar el Dockerfile con:
+
+- **Stage 1 (builder)**:
+  - Base: `node:20-slim`
+  - Instalar dependencias
+  - Compilar aplicación TypeScript
+  
+- **Stage 2 (production)**:
+  - Base: `node:20-slim`
+  - Copiar solo dependencias de producción
+  - Copiar build desde stage anterior
+  - **Usuario no-root** para seguridad
+  - Exponer puerto 3000
+  - CMD para ejecutar aplicación
+
+#### ✅ Frontend Dockerfile (Multi-stage)
+
+**Ubicación**: `frontend/Dockerfile`
+
+- **Stage 1 (builder)**: Build de Vite
+- **Stage 2 (production)**: Servidor nginx con el build estático
+
+#### ✅ Docker Compose para Desarrollo
+
+**Ubicación**: `docker-compose.dev.yml`
+
+Debes completar:
+
+- **Definir red interna** para comunicación entre servicios
+- **Definir volúmenes**:
+  - Base de datos PostgreSQL (persistencia)
+  - node_modules del backend
+  - node_modules del frontend
+- **Health checks** para todos los servicios
+- Variables de entorno apropiadas
+
+#### ✅ Docker Compose para Test/Producción
+
+**Ubicación**: `docker-compose.test.yml`
+
+- Similar al dev pero usando las imágenes de producción
+- Sin volúmenes de código fuente (solo código compilado)
+- Configuraciones de producción
+
+---
+
+## 🔒 Requisitos de Seguridad (OWASP Top 10)
+
+> [!IMPORTANT]
+> **Debes implementar las mejores prácticas de seguridad**. Consulta el archivo `OWASP_REQUIREMENTS.md` para detalles específicos.
+
+### Requisitos Mínimos
+
+1. **A01 - Broken Access Control**:
+   - Guards en todas las rutas protegidas
+   - Validación de permisos en backend
+
+2. **A02 - Cryptographic Failures**:
+   - Hash de contraseñas con bcrypt (salt rounds >= 10)
+   - JWT con secret fuerte (variable de entorno)
+   - NUNCA hardcodear secretos
+
+3. **A03 - Injection**:
+   - Usar TypeORM (previene SQL injection)
+   - Validar TODA entrada con `class-validator`
+   - Sanitizar datos
+
+4. **A05 - Security Misconfiguration**:
+   - CORS configurado específicamente (no `*`)
+   - Variables de entorno para secretos
+   - Separación dev/production
+
+5. **A07 - Authentication Failures**:
+   - Validación robusta de contraseñas
+   - Expiración de tokens JWT
+   - Mensajes de error genéricos (no revelar si usuario existe)
+
+---
+
+## 🚨 Manejo de Errores
+
+### Backend
+
+**Requerido en TODOS los servicios**:
+
+```typescript
+// ✅ CORRECTO
+async someMethod() {
+    try {
+        const result = await externalAPI.call();
+        return result;
+    } catch (error) {
+        this.logger.error('Error detail', error);
+        throw new HttpException(
+            'User-friendly message',
+            HttpStatus.BAD_GATEWAY
+        );
+    }
+}
+```
+
+### Frontend
+
+**Requerido en TODAS las llamadas API**:
+
+```typescript
+// ✅ CORRECTO
+try {
+    await authStore.login(username, password);
+    router.push('/dashboard');
+} catch (error) {
+    // Mostrar mensaje de error al usuario
+    errorMessage.value = error.response?.data?.message || 'Error de conexión';
+}
+```
+
+---
+
+## 📊 Criterios de Evaluación
+
+| Criterio | Peso | Descripción |
+|----------|------|-------------|
+| **Funcionalidad** | 30% | ¿Funciona todo según especificaciones? |
+| **Seguridad (OWASP)** | 25% | ¿Se implementaron las mejores prácticas? |
+| **Calidad de Código** | 20% | ¿Es mantenible, limpio, bien estructurado? |
+| **Manejo de Errores** | 15% | ¿Errores manejados robustamente? |
+| **Docker** | 10% | ¿Dockerfiles optimizados? ¿Ambientes separados? |
+
+---
+
+## 📦 Entregables
+
+### Debes entregar
+
+1. **Código Fuente Completo**
+   - Todos los archivos modificados/creados
+   - Sin `node_modules` (usar .gitignore)
+
+2. **Dockerfiles Completos**
+   - `backend/Dockerfile`
+   - `frontend/Dockerfile`
+   - `docker-compose.dev.yml`
+   - `docker-compose.test.yml`
+
+3. **Documentación**
+   - `README.md` actualizado con instrucciones de ejecución
+   - Comentarios en código complejo
+   - Variables de entorno documentadas
+
+4. **Archivo `.env.example`**
+   - Con todas las variables necesarias
+   - Sin valores sensibles reales
+
+---
+
+## 🚀 Instrucciones de Inicio
+
+### Pre-requisitos
+
+- Docker y Docker Compose instalados
+- Node.js 20+ (para desarrollo local opcional)
+- Git
+
+### Ejecutar en Desarrollo
+
+```bash
+# Copiar variables de entorno
+cp .env.example .env
+
+# Iniciar con Docker
+docker-compose -f docker-compose.dev.yml up --build
+
+# La aplicación estará disponible en:
+# Frontend: http://localhost:5173
+# Backend: http://localhost:3000
+# Swagger: http://localhost:3000/api/docs
+```
+
+### Ejecutar en Test (Producción)
+
+```bash
+docker-compose -f docker-compose.test.yml up --build
+```
+
+---
+
+## 💡 Consejos
+
+1. **Lee TODO el archivo `OWASP_REQUIREMENTS.md`** antes de empezar
+2. **Busca comentarios `// TODO:`** en el código - te guiarán
+3. **Prueba frecuentemente** - no dejes todo para el final
+4. **Manejo de errores** - implementa try/catch desde el inicio
+5. **Git commits** - haz commits descriptivos de tu progreso
+6. **Documentación** - comenta las decisiones importantes
+
+---
+
+## 📚 Recursos Útiles
+
+- [NestJS Docs](https://docs.nestjs.com/)
+- [Vue.js 3 Docs](https://vuejs.org/)
+- [PokeAPI Docs](https://pokeapi.co/docs/v2)
+- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+- [Docker Multi-stage Builds](https://docs.docker.com/build/building/multi-stage/)
+
+---
+
+## ❓ Preguntas
+
+Si tienes dudas sobre los requisitos, anota tus suposiciones en el README.md y procede con la implementación más razonable.
+
+**¡Éxito con la prueba técnica! 🚀**
+</file>
+
+<file path="backend/src/auth/strategies/jwt.strategy.ts">
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { PassportStrategy } from '@nestjs/passport';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { AuthService } from '../auth.service';
+
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+    constructor(
+        configService: ConfigService,
+        private readonly authService: AuthService,
+    ) {
+        // TODO: Completar configuración de JWT Strategy
+        // Requisitos:
+        // 1. Obtener el secret desde ConfigService
+        // 2. Validar que el secret exista (lanzar error si no)
+        // 3. No usar fallback hardcodeado ('secretKey' es inseguro)
+        const secret = configService.get<string>('JWT_SECRET');
+
+        super({
+            jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+            ignoreExpiration: false,
+            secretOrKey: secret || 'secretKey',  // TODO: Eliminar fallback y validar secret
+        });
+    }
+
+    // TODO: Completar método validate
+    // Requisitos:
+    // 1. Extraer userId del payload (payload.sub)
+    // 2. Buscar usuario en base de datos usando authService.getUserById()
+    // 3. Si no existe, lanzar UnauthorizedException
+    // 4. Retornar el usuario encontrado
+    async validate(payload: any) {
+        // TODO: Implementar validación del JWT payload
+        throw new Error('Method not implemented - Complete JWT validation');
+    }
+}
+</file>
+
+<file path="backend/src/auth/auth.controller.ts">
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { AuthService } from './auth.service';
+import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+
+@Controller('auth')
+@ApiTags('auth')
+export class AuthController {
+  constructor(private readonly authService: AuthService) { }
+
+  // TODO: Completar implementación del login
+  // Requisitos:
+  // 1. Validar usuario usando authService.validateUser()
+  // 2. Si las credenciales son inválidas, lanzar UnauthorizedException
+  // 3. Si son válidas, retornar el resultado de authService.login()
+  // 4. Agregar manejo de errores apropiado (try/catch)
+  @Post('login')
+  @ApiOperation({ summary: 'User login' })
+  @ApiResponse({ status: 200, description: 'Return access token.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  async login(@Body() loginDto: LoginDto) {
+    // TODO: Implementar lógica de login
+    throw new Error('Method not implemented - Complete this functionality');
+  }
+
+  @Post('register')
+  @ApiOperation({ summary: 'User registration' })
+  @ApiResponse({ status: 201, description: 'User successfully registered.' })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
+  }
+
+  // TODO: Implementar protección con JWT Guard
+  // Esta ruta debe estar protegida y solo accesible con token válido
+  @Get('me')
+  // TODO: Descomentar y configurar el guard
+  // @UseGuards(AuthGuard('jwt'))
+  // @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'Return user profile.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  getProfile(@Request() req) {
+    // TODO: Una vez implementado el guard, retornar req.user
+    throw new Error('Method not implemented - Implement JWT guard first');
+  }
+}
+</file>
+
+<file path="backend/src/auth/auth.module.ts">
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { PassportModule } from '@nestjs/passport';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { User } from './entities/user.entity';
+import { JwtStrategy } from './strategies/jwt.strategy';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([User]),
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    // TODO: Configurar JwtModule correctamente
+    // Requisitos:
+    // 1. El secret debe venir de variables de entorno (JWT_SECRET)
+    // 2. NUNCA usar un fallback hardcodeado en producción
+    // 3. Configurar expiración del token (ej: '1h')
+    // 4. Validar que JWT_SECRET exista, lanzar error si no
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        secret: configService.get('JWT_SECRET') || 'secretKey',  // TODO: Mejorar seguridad
+        signOptions: { expiresIn: '1h' },
+      }),
+    }),
+  ],
+  controllers: [AuthController],
+  providers: [AuthService, JwtStrategy],
+  exports: [JwtStrategy, PassportModule],
+})
+export class AuthModule { }
+</file>
+
+<file path="backend/src/auth/auth.service.ts">
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
+import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+import { User } from './entities/user.entity';
+
+import { JwtService } from '@nestjs/jwt';
+
+@Injectable()
+export class AuthService {
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly jwtService: JwtService,
+  ) { }
+
+
+  // TODO: Implementar método de registro
+  // Requisitos:
+  // 1. Verificar que el usuario no exista (username único)
+  // 2. Hashear la contraseña usando bcrypt con salt rounds >= 10
+  // 3. Crear y guardar el nuevo usuario en la base de datos
+  // 4. Retornar un mensaje de éxito
+  // 5. Manejar errores apropiadamente (try/catch)
+  async register(registerDto: RegisterDto) {
+    // TODO: Implementar lógica de registro
+    throw new Error('Method not implemented - Complete this functionality');
+  }
+
+
+  // TODO: Implementar método de validación de usuario
+  // Requisitos:
+  // 1. Buscar usuario por username
+  // 2. Comparar contraseña usando bcrypt.compare()
+  // 3. Retornar usuario (sin password) si es válido, null si no
+  async validateUser(username: string, pass: string): Promise<any> {
+    // TODO: Implementar validación de credenciales
+    return null;
+  }
+
+  // TODO: Implementar método de login
+  // Requisitos:
+  // 1. Generar JWT token con payload { username, sub: userId }
+  // 2. Retornar { accessToken, user }
+  // 3. El token debe tener expiración (configurado en auth.module.ts)
+  async login(user: any) {
+    // TODO: Implementar generación de JWT
+    throw new Error('Method not implemented - Complete this functionality');
+  }
+
+
+  getProfile(user: any) {
+    return user;
+  }
+
+  async getUserById(id: number): Promise<User | null> {
+    const user = await this.userRepository.findOneBy({ id });
+    if (user) {
+      const { password, ...result } = user;
+      return result as User;
+    }
+    return null;
+  }
+}
+</file>
+
+<file path="backend/src/pokemon/pokemon.module.ts">
+import { Module } from '@nestjs/common';
+import { PokemonService } from './pokemon.service';
+// TODO: Crear e importar PokemonGateway aquí
+// import { PokemonGateway } from './pokemon.gateway';
+import { PokemonController } from './pokemon.controller';
+
+@Module({
+  controllers: [PokemonController],
+  providers: [
+    PokemonService,
+    // TODO: Agregar PokemonGateway a providers después de crearlo
+    // PokemonGateway,
+  ],
+  exports: [PokemonService],
+})
+export class PokemonModule { }
+</file>
+
+<file path="backend/src/pokemon/pokemon.service.ts">
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class PokemonService {
+  // TODO: Definir estructura para almacenar sprites
+  // Puedes usar un array en memoria o considerar usar una base de datos
+  // Ejemplo: private sprites: PokemonSprite[] = [];
+
+  // TODO: Implementar método getRandomSprite()
+  // Requisitos:
+  // 1. Generar ID aleatorio entre 1 y 898
+  // 2. Hacer request a PokeAPI: https://pokeapi.co/api/v2/pokemon/{id}
+  // 3. Extraer sprite URL (sprites.front_default) y nombre (name)
+  // 4. Manejar errores con try/catch apropiadamente
+  // 5. Si PokeAPI falla, lanzar BadGatewayException con mensaje user-friendly
+  // 6. Retornar objeto { id: timestamp, url: string, name: string }
+  // 7. Opcionalmente: Almacenar el sprite en memoria
+  async getRandomSprite(): Promise<any> {
+    // TODO: Implementar integración con PokeAPI
+    throw new Error('Method not implemented - Complete PokeAPI integration');
+  }
+
+  // HINT: Puedes necesitar estos métodos para gestionar sprites
+  create(dto: any) {
+    // TODO: Implementar si necesitas crear sprites manualmente
+  }
+
+  findAll() {
+    // TODO: Retornar todos los sprites almacenados
+    return [];
+  }
+
+  findOne(id: number) {
+    // TODO: Buscar sprite por ID
+    return null;
+  }
+
+  update(id: number, dto: any) {
+    // TODO: Actualizar sprite si es necesario
+  }
+
+  remove(id: number) {
+    // TODO: Eliminar sprite por ID
+    return { deleted: true, id };
+  }
+
+  removeAll() {
+    // TODO: Limpiar todos los sprites
+    return { deleted: true, count: 0 };
+  }
+}
+</file>
+
+<file path="backend/Dockerfile">
+# Multi-Stage Build para Backend
+
+# TODO: Completar STAGE 1 (Builder)
+# Usa la imagen node:20-slim
+# 1. Copiar package files
+# 2. Instalar dependencias
+# 3. Copiar código fuente
+# 4. Compilar (npm run build)
+FROM node:20-slim AS builder
+
+WORKDIR /usr/src/app
+# ... completar aquí ...
+
+# TODO: Completar STAGE 2 (Production)
+# Usa la imagen node:20-slim
+# 1. Copiar package files
+# 2. Instalar SOLO dependencias de producción (npm ci --only=production)
+# 3. Copiar la carpeta 'dist' del stage builder
+# 4. Configurar usuario no-root (USER node)
+# 5. Exponer puerto 3000
+# 6. Definir CMD
+FROM node:20-slim AS production
+
+WORKDIR /usr/src/app
+# ... completar aquí ...
+
+# HINT: Recuerda copiar dist de la etapa anterior:
+# COPY --from=builder /usr/src/app/dist ./dist
+</file>
+
+<file path="frontend/src/router/index.ts">
+import { createRouter, createWebHistory } from 'vue-router'
+import HomeView from '../views/HomeView.vue'
+import LoginView from '../views/LoginView.vue'
+import RegisterView from '../views/RegisterView.vue'
+import DashboardView from '../views/DashboardView.vue'
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes: [
+    {
+      path: '/',
+      name: 'home',
+      component: HomeView,
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginView,
+      meta: { requiresGuest: true },
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: RegisterView,
+      meta: { requiresGuest: true },
+    },
+    {
+      path: '/dashboard',
+      name: 'dashboard',
+      component: DashboardView,
+      meta: { requiresAuth: true },
+    },
+  ],
+})
+
+// TODO: Implementar Route Guards globales
+// Requisitos:
+// 1. Verificar si el usuario tiene token (usar sessionStorage o cookies según implementación)
+// 2. Si la ruta requiere auth (meta.requiresAuth) y no hay token -> redirigir a /login
+// 3. Si la ruta es para invitados (meta.requiresGuest) y hay token -> redirigir a /dashboard
+// 4. Asegurar que la navegación fluya correctamente
+router.beforeEach((to, from, next) => {
+  // TODO: Implementar lógica de protección de rutas
+  next(); // Eliminar esto una vez implementada la lógica
+})
+
+export default router
+</file>
+
+<file path="frontend/src/stores/auth.ts">
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
+import client from '@/api/client';
+
+export interface User {
+    id: number;
+    username: string;
+}
+
+export const useAuthStore = defineStore('auth', () => {
+    // TODO: Definir estado reactivo
+    // const token = ref<string | null>(...);
+    // const user = ref<User | null>(null);
+
+    // TODO: Implementar acción de login
+    // Requisitos:
+    // 1. Llamar endpoint /auth/login
+    // 2. Guardar token (evaluar seguridad: localStorage vs cookies)
+    // 3. Actualizar estado de usuario
+    const login = async (username: string, password: string) => {
+        throw new Error('Not implemented');
+    };
+
+    // TODO: Implementar acción de registro
+    const register = async (username: string, password: string, confirmPassword: string) => {
+        throw new Error('Not implemented');
+    };
+
+    // TODO: Implementar logout
+    // Requisitos:
+    // 1. Llamar endpoint /auth/logout
+    // 2. Limpiar token y estado de usuario
+    const logout = async () => {
+        throw new Error('Not implemented');
+    };
+
+    // TODO: Implementar fetchUser para persistencia de sesión
+    const fetchUser = async () => {
+        // Verificar token y traer perfil
+    };
+
+    return {
+        // token,
+        // user,
+        login,
+        register,
+        logout,
+        fetchUser,
+    };
+});
+</file>
+
+<file path="frontend/src/views/DashboardView.vue">
+<script setup lang="ts">
+// TODO: Implementar Dashboard con WebSockets
+// Requisitos:
+// 1. Conectar a WebSocket (autenticado con JWT)
+// 2. Mostrar lista de sprites recibidos
+// 3. Botón para solicitar nuevo sprite
+// 4. Botón para limpiar lista
+// 5. Implementar logout
+</script>
+
+<template>
+  <div class="min-h-screen bg-gray-100 p-8">
+    <div class="max-w-7xl mx-auto">
+      <header class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Pokemon Dashboard</h1>
+        <button class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+          Logout (TODO)
+        </button>
+      </header>
+
+      <div class="bg-white p-8 rounded-lg shadow text-center">
+        <h2 class="text-xl font-semibold mb-4 text-gray-700">Esperando implementación...</h2>
+        <p class="text-gray-500">
+          Aquí debes mostrar los sprites de Pokémon recibidos vía WebSocket.
+        </p>
+      </div>
+    </div>
+  </div>
+</template>
+</file>
+
+<file path="frontend/src/views/LoginView.vue">
+<script setup lang="ts">
+// TODO: Implementar vista de Login
+// Requisitos:
+// 1. Formulario con username y password
+// 2. Validación usando Vee-Validate + Zod
+// 3. Llamada al endpoint de login del backend
+// 4. Manejo de errores y loading state
+// 5. Redirección al dashboard al éxito
+</script>
+
+<template>
+  <main class="flex min-h-screen items-center justify-center p-4">
+    <div class="w-full max-w-md p-6 bg-white rounded-lg shadow-xl">
+      <h1 class="text-2xl font-bold text-center mb-6">Iniciar Sesión</h1>
+      
+      <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800">
+        <p class="font-bold">⚠️ Vista no implementada</p>
+        <p class="text-sm mt-2">Debes implementar esta vista completa siguiendo los requisitos del README.</p>
+      </div>
+
+      <!-- TODO: Agregar formulario aquí -->
+    </div>
+  </main>
+</template>
+</file>
+
+<file path="frontend/src/views/RegisterView.vue">
+<script setup lang="ts">
+// TODO: Implementar vista de Registro
+// Requisitos:
+// 1. Formulario con username, password y confirmación
+// 2. Validación de coincidencia de contraseñas
+// 3. Validación de complejidad de contraseña (min 6 caracteres)
+// 4. Llamada al endpoint de registro
+// 5. Redirección al login al éxito
+</script>
+
+<template>
+  <main class="flex min-h-screen items-center justify-center p-4">
+    <div class="w-full max-w-md p-6 bg-white rounded-lg shadow-xl">
+      <h1 class="text-2xl font-bold text-center mb-6">Registro</h1>
+      
+      <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800">
+        <p class="font-bold">⚠️ Vista no implementada</p>
+        <p class="text-sm mt-2">Debes implementar el formulario de registro aquí.</p>
+      </div>
+    </div>
+  </main>
+</template>
+</file>
+
+<file path="frontend/Dockerfile">
+# Multi-Stage Build para Frontend
+
+# TODO: STAGE 1 - Build
+# imagen base: node:20-slim
+# pasos: install dependencies -> build (vite build)
+FROM node:20-slim AS builder
+
+WORKDIR /app
+# ... completar build ...
+
+
+# TODO: STAGE 2 - Production Server
+# imagen base: nginx:alpine
+# pasos:
+# 1. Copiar archivos compilados de /app/dist (builder) a /usr/share/nginx/html
+# 2. Exponer puerto 80 (o configurar custom nginx.conf)
+# 3. Nginx corre automáticamente
+FROM nginx:alpine
+
+# ... completar copy ...
+</file>
+
+<file path="README.md">
+# Prueba Técnica Full-Stack: NestJS + Vue 3 + Docker
+
+Bienvenido a la prueba técnica para el rol de Consultor de Tecnología. Este repositorio contiene una base de código moderna pero incompleta funcionalmente, diseñada para evaluar tus habilidades en desarrollo Full-Stack, arquitectura de software, contenedores y seguridad.
+
+---
+
+## 🎯 Objetivo
+
+Tu misión es **completar la implementación** de una aplicación que gestiona autenticación de usuarios y visualización de sprites de Pokémon en tiempo real, siguiendo estrictamente los requerimientos definidos.
+
+No buscamos solo "que funcione", buscamos:
+
+- **Calidad de código**: Clean Code, SOLID, tipado fuerte.
+- **Seguridad**: Implementación proactiva de OWASP Top 10.
+- **Infraestructura**: Manejo correcto de Docker y variables de entorno.
+- **Manejo de errores**: Robustez ante fallos externos.
+
+---
+
+## 📚 Documentación Importante
+
+Antes de empezar, es **OBLIGATORIO** leer los siguientes documentos incluidos en este repositorio:
+
+1. [`TECHNICAL_ASSESSMENT.md`](./TECHNICAL_ASSESSMENT.md): Contiene las instrucciones detalladas, historias de usuario, criterios de aceptación y guía de entrega.
+2. [`OWASP_REQUIREMENTS.md`](./OWASP_REQUIREMENTS.md): Detalla los requisitos de seguridad **críticos** que debes implementar. Su cumplimiento representa el 25% de la nota.
+
+---
+
+## 🛠️ Stack Tecnológico Base
+
+- **Backend**: NestJS, TypeORM, PostgreSQL.
+- **Frontend**: Vue 3, Pinia, TailwindCSS, Vee-Validate.
+- **Infraestructura**: Docker, Docker Compose (Multi-stage builds).
+
+---
+
+## 🚀 Cómo Iniciar
+
+El proyecto ha sido configurado para soportar dos entornos mediante Docker Compose.
+
+### 1. Configuración de Entorno
+
+Copia el archivo de ejemplo y configura tus variables (especialmente `JWT_SECRET` y credenciales de DB):
+
+```bash
+cp .env.example .env
+```
+
+### 2. Ejecutar en Desarrollo (Hot-Reload)
+
+Para desarrollar, utiliza el archivo `docker-compose.dev.yml`. Este entorno monta el código fuente como volúmenes para permitir hot-reload tanto en backend como frontend.
+
+```bash
+# Levantar el entorno de integración
+docker-compose -f docker-compose.dev.yml up --build
+```
+
+- **Frontend**: <http://localhost:5173>
+- **Backend**: <http://localhost:3000>
+- **Swagger**: <http://localhost:3000/api/docs>
+
+> **IMPORTANTE**: Deberás completar el archivo `docker-compose.dev.yml` (y los `Dockerfile`) ya que contienen secciones `TODO`.
+
+### 3. Ejecutar en Modo Test/Producción
+
+Para verificar tu entrega final, utiliza `docker-compose.test.yml`. Este entorno simula producción: no monta volúmenes de código, usa imágenes compiladas y optimizadas, y sirve el frontend con Nginx.
+
+```bash
+docker-compose -f docker-compose.test.yml up --build
+```
+
+- **App**: <http://localhost:80> (o el puerto que configures)
+
+---
+
+## 🧪 Resumen de Tareas Pendientes
+
+El código base tiene múltiples comentarios `TODO` guiándote. Las tareas principales son:
+
+1. **Backend Auth**: Completar `AuthService` (login, register), `JwtStrategy` y proteger rutas.
+2. **Backend Pokémon**: Integrar PokeAPI, mejorar manejo de errores y preparar el Gateway (que fue eliminado intencionalmente).
+3. **Frontend**: Implementar vistas de Login, Registro y Dashboard (actualmente son placeholders).
+4. **Docker**: Configurar correctamente los Dockerfiles multi-stage y las redes en docker-compose.
+5. **Seguridad**: Asegurar la aplicación según `OWASP_REQUIREMENTS.md`.
+
+---
+
+## 📦 Entrega
+
+1. Asegúrate de que `docker-compose.test.yml` levante todo el stack correctamente.
+2. Incluye un archivo `SOLUTION.md` (opcional) si deseas explicar decisiones técnicas complejas.
+3. Sube tu solución a un repositorio o entrega el archivo comprimido según las instrucciones de RRHH.
+
+¡Mucho éxito! Demuestra tu potencial. 🚀
+</file>
+
+</files>

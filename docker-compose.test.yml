@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # Base de datos (Simulación Producción)
+  db:
+    image: postgres:17-alpine
+    container_name: postgres-test
+    # TODO: Configurar base de datos segura
+    # 1. Asegurar que solo sea accesible por backend (red interna)
+    # 2. Configurar usuario y contraseña seguros (desde .env)
+    # 3. Configurar healthcheck
+
+    # Backend (Production Build)
+  backend:
+    # TODO: Configurar backend para producción/test
+    # 1. Usar build 'target: production' del Dockerfile
+    # 2. NO montar volúmenes de código fuente (código inmutable)
+    # 3. Configurar NODE_ENV=production
+    # 4. Pasar variables de entorno de producción
+    depends_on:
+      - db
+
+  # Frontend (Next.js Standalone o Nginx Proxy)
+  frontend:
+    # TODO: Configurar frontend para entorno de test/producción
+    # 1. Usar build 'target: production' del Dockerfile (Next.js standalone)
+    # 2. Exponer puerto 3001 (o 80 si usas Nginx)
+    # 3. Asegurar comunicación con backend
+    depends_on:
+      - backend
+
+# TODO: Definir red interna (bridge) para que los servicios se comuniquen sin exponer DB
+networks: # internal-network: ...
