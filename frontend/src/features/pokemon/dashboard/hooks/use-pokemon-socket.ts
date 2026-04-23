@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type Dispatch,
   type SetStateAction,
@@ -60,12 +61,17 @@ function usePokemonSocket(params: UsePokemonSocketParams): UsePokemonSocketResul
   const [isSocketConnected, setIsSocketConnected] = useState<boolean>(false);
   const [socketError, setSocketError] = useState<string>('');
   const [pendingJobIds, setPendingJobIds] = useState<string[]>([]);
+  const syncSpritesFromApiRef = useRef(syncSpritesFromApi);
+  const userId: number | null = user?.id ?? null;
+  useEffect(() => {
+    syncSpritesFromApiRef.current = syncSpritesFromApi;
+  }, [syncSpritesFromApi]);
   const pendingRequestCount: number = pendingJobIds.length;
   const clearSocketError = useCallback((): void => {
     setSocketError('');
   }, []);
   useEffect(() => {
-    if (!isInitialized || isLoading || !user) {
+    if (!isInitialized || isLoading || !userId) {
       return;
     }
     const socket = pokemonSocketClient.connect({
@@ -76,7 +82,7 @@ function usePokemonSocket(params: UsePokemonSocketParams): UsePokemonSocketResul
           return;
         }
         clearSocketError();
-        void syncSpritesFromApi().catch((): void => {
+        void syncSpritesFromApiRef.current().catch((): void => {
           setSocketError('Could not refresh sprites.');
         });
       },
@@ -144,9 +150,8 @@ function usePokemonSocket(params: UsePokemonSocketParams): UsePokemonSocketResul
   }, [
     isInitialized,
     isLoading,
-    user,
+    userId,
     clearSocketError,
-    syncSpritesFromApi,
     setSprites,
     setFailedSpriteImageIds,
     setDeletingSpriteIds,
