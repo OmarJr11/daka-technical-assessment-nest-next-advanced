@@ -1,13 +1,18 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, Index } from 'typeorm';
 
-@Entity('users')
+/**
+ * Represents persisted user credentials and identity.
+ */
+@Entity('users', { schema: 'system' })
 export class User {
-    @PrimaryGeneratedColumn()
-    id: number;
+  @Index({ unique: true })
+  @PrimaryGeneratedColumn()
+  id: number;
 
-    @Column({ unique: true })
-    username: string;
+  @Index({ unique: true })
+  @Column({ unique: true, length: 30 })
+  username: string;
 
-    @Column()
-    password: string;
+  @Column({ select: false, length: 100 })
+  password?: string;
 }

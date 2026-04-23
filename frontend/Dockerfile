@@ -7,9 +7,10 @@
 # 2. Construir la app de Next.js (next build)
 FROM node:20-slim AS builder
 WORKDIR /app
-
-# ... completar instalacion y build ...
-
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
 
 # TODO: STAGE 2 - Production Server
 # imagen base: node:20-slim o node:20-alpine
@@ -19,5 +20,11 @@ WORKDIR /app
 # 3. Configurar comando de arranque (npm run start o node server.js)
 FROM node:20-slim AS runner
 WORKDIR /app
-
-# ... completar copy y CMD ...
+ENV NODE_ENV=production
+COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.ts ./next.config.ts
+EXPOSE 3001
+CMD ["npm", "run", "start", "--", "--hostname", "0.0.0.0", "--port", "3001"]

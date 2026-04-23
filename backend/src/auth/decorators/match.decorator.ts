@@ -1,33 +1,43 @@
 import {
-    registerDecorator,
-    ValidationArguments,
-    ValidationOptions,
-    ValidatorConstraint,
-    ValidatorConstraintInterface,
+  registerDecorator,
+  ValidationArguments,
+  ValidationOptions,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
 } from 'class-validator';
 
-export function Match(property: string, validationOptions?: ValidationOptions) {
-    return (object: any, propertyName: string) => {
-        registerDecorator({
-            target: object.constructor,
-            propertyName,
-            options: validationOptions,
-            constraints: [property],
-            validator: MatchConstraint,
-        });
-    };
+export function Match(
+  property: string,
+  validationOptions?: ValidationOptions,
+): PropertyDecorator {
+  return (target: object, propertyName: string | symbol): void => {
+    if (typeof propertyName !== 'string') {
+      return;
+    }
+    registerDecorator({
+      target: target.constructor,
+      propertyName,
+      options: validationOptions,
+      constraints: [property],
+      validator: MatchConstraint,
+    });
+  };
 }
 
 @ValidatorConstraint({ name: 'Match' })
 export class MatchConstraint implements ValidatorConstraintInterface {
-    validate(value: any, args: ValidationArguments) {
-        const [relatedPropertyName] = args.constraints;
-        const relatedValue = (args.object as any)[relatedPropertyName];
-        return value === relatedValue;
-    }
+  validate(value: unknown, args: ValidationArguments): boolean {
+    const [relatedPropertyName] = args.constraints as [string];
+    const objectRecord: Record<string, unknown> = args.object as Record<
+      string,
+      unknown
+    >;
+    const relatedValue: unknown = objectRecord[relatedPropertyName];
+    return value === relatedValue;
+  }
 
-    defaultMessage(args: ValidationArguments) {
-        const [relatedPropertyName] = args.constraints;
-        return `${args.property} must match ${relatedPropertyName}`;
-    }
+  defaultMessage(args: ValidationArguments): string {
+    const [relatedPropertyName] = args.constraints as [string];
+    return `${args.property} must match ${relatedPropertyName}`;
+  }
 }

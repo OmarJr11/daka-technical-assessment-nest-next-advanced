@@ -15,8 +15,11 @@ export default registerAs(
     // Esta configuración buscará cualquier archivo que termine en .entity.ts o .entity.js
     entities: [join(__dirname, '/../**/*.entity{.ts,.js}')],
 
-    // synchronize: true only desarrollo.
-    synchronize: process.env.NODE_ENV !== 'production',
+    // Use migrations in all environments to keep schema deterministic.
+    synchronize: false,
+    migrationsRun: true,
+
+    migrations: [join(__dirname, '/../migrations/*{.ts,.js}')],
 
     // Opcional: si quieres ver las consultas SQL en la consola
     logging: process.env.NODE_ENV !== 'production',

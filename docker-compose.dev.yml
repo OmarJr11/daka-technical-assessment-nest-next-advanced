@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Base de datos PostgreSQL
@@ -10,6 +10,42 @@ services:
     # 2. Exponer puerto por defecto de PostgreSQL
     # 3. Configurar volumen para persistencia de datos
     # 4. Definir healthcheck para asegurar disponibilidad
+    env_file:
+      - ./.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_INITDB_ARGS: ${POSTGRES_INITDB_ARGS}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - app-network
+
+  # Redis para colas BullMQ
+  redis:
+    image: redis:7-alpine
+    container_name: redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - app-network
 
     # Backend (NestJS)
   backend:
@@ -19,10 +55,37 @@ services:
     # 3. Montar volumen de código fuente para habilitar HOT-RELOAD
     # 4. Exponer puerto API (3000)
     # 5. Definir variables de entorno (DB Host, usuario, pass, JWT Secret)
+    container_name: backend-dev
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: builder
+    working_dir: /usr/src/app
+    command: sh -c "npm ci && npm run start:dev"
+    env_file:
+      - ./.env
+      - ./backend/.env
+    environment:
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      FRONTEND_URL: http://localhost:3001
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/usr/src/app
+      - backend_node_modules:/usr/src/app/node_modules
+      - backend_storage:/usr/src/app/storage
     depends_on:
       db:
         # TODO: Esperar a que la DB esté saludable (service_healthy)
-        condition: service_started # Cambiar esto a la condición correcta
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
 
   # Frontend (Next.js)
   frontend:
@@ -31,11 +94,40 @@ services:
     # 2. Usar target de desarrollo
     # 3. Exponer puerto de desarrollo Next.js (3001)
     # 4. Montar volúmenes necesarios
+    image: node:20-slim
+    container_name: frontend-dev
+    working_dir: /usr/src/app
+    command: sh -c "npm ci && npm run dev -- --hostname 0.0.0.0 --port 3001"
+    env_file:
+      - ./.env
+      - ./frontend/.env
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./frontend:/usr/src/app
+      - frontend_node_modules:/usr/src/app/node_modules
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:3000
-
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_WS_URL: http://localhost:3000
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - app-network
 # TODO: Definir volúmenes nombrados para persistencia
 # volumes: ...
 
 # TODO: Definir redes (opcional en compose v2 pero recomendado para aislamiento)
 # networks: ...
+volumes:
+  # Volúmenes nombrados para persistencia y node_modules
+  postgres_dev_data:
+  redis_dev_data:
+  backend_node_modules:
+  frontend_node_modules:
+  backend_storage:
+
+networks:
+  # Red de aplicación para aislar servicios
+  app-network:
+    driver: bridge

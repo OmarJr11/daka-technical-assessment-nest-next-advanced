@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Base de datos (Simulación Producción)
@@ -9,25 +9,95 @@ services:
     # 1. Asegurar que solo sea accesible por backend (red interna)
     # 2. Configurar usuario y contraseña seguros (desde .env)
     # 3. Configurar healthcheck
+    env_file:
+      - ./.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_INITDB_ARGS: ${POSTGRES_INITDB_ARGS}
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - internal-network
 
-    # Backend (Production Build)
+  # Redis para colas BullMQ
+  redis:
+    image: redis:7-alpine
+    container_name: redis-test
+    command: [ "redis-server", "--appendonly", "yes", "--save", "60", "1000" ]
+    volumes:
+      - redis_test_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - internal-network
+
   backend:
     # TODO: Configurar backend para producción/test
     # 1. Usar build 'target: production' del Dockerfile
     # 2. NO montar volúmenes de código fuente (código inmutable)
     # 3. Configurar NODE_ENV=production
     # 4. Pasar variables de entorno de producción
+    container_name: backend-test
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    env_file:
+      - ./.env
+      - ./backend/.env
+    environment:
+      NODE_ENV: production
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      FRONTEND_URL: http://localhost:3001
+    ports:
+      - "3000:3000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal-network
 
-  # Frontend (Next.js Standalone o Nginx Proxy)
   frontend:
-    # TODO: Configurar frontend para entorno de test/producción
-    # 1. Usar build 'target: production' del Dockerfile (Next.js standalone)
-    # 2. Exponer puerto 3001 (o 80 si usas Nginx)
-    # 3. Asegurar comunicación con backend
+    container_name: frontend-test
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runner
+    env_file:
+      - ./.env
+      - ./frontend/.env
+    ports:
+      - "3001:3001"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_WS_URL: http://localhost:3000
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+    networks:
+      - internal-network
 
-# TODO: Definir red interna (bridge) para que los servicios se comuniquen sin exponer DB
-networks: # internal-network: ...
+volumes:
+  postgres_test_data:
+  redis_test_data:
+
+networks:
+  internal-network:
+    driver: bridge

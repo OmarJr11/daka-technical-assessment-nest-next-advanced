@@ -1,22 +1,37 @@
 import {
+  BadRequestException,
   Controller,
   Get,
+  InternalServerErrorException,
   Post,
   Body,
-  UseGuards,
   Request,
+  Res,
   UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
+import type { Response } from 'express';
+import { User } from './entities/user.entity';
+import { Throttle } from '@nestjs/throttler';
+
+type AuthenticatedRequest = {
+  user: User;
+};
 
 @Controller('auth')
 @ApiTags('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   // TODO: Completar implementación del login
   // Requisitos:
@@ -28,31 +43,115 @@ export class AuthController {
   @ApiOperation({ summary: 'User login' })
   @ApiResponse({ status: 200, description: 'Return access token.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  async login(@Body() loginDto: LoginDto) {
-    // TODO: Implementar lógica de login
-    throw new Error('Method not implemented - Complete this functionality');
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<{ accessToken: string; user: User }> {
+    try {
+      const user = await this.authService.validateUser(
+        loginDto.username,
+        loginDto.password,
+      );
+      const authResult = await this.authService.login(user);
+      this.setAuthCookie(response, authResult.accessToken);
+      return {
+        accessToken: authResult.accessToken,
+        user: authResult.user,
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Could not complete login');
+    }
   }
 
+  /**
+   * Register a new user
+   * @param {RegisterDto} registerDto - Register user dto
+   */
   @Post('register')
   @ApiOperation({ summary: 'User registration' })
-  @ApiResponse({ status: 201, description: 'User successfully registered.' })
+  @ApiResponse({
+    status: 201,
+    description: 'User registered with access token.',
+  })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
-  register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(@Body() registerDto: RegisterDto): Promise<User> {
+    try {
+      return await this.authService.register(registerDto);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Could not complete user registration',
+      );
+    }
+  }
+
+  /**
+   * Logs out the current user by clearing auth cookie.
+   * @param {Response} response - Express response
+   * @returns {{message: string}} Logout response message
+   */
+  @Post('logout')
+  @ApiOperation({ summary: 'User logout' })
+  @ApiResponse({ status: 200, description: 'User logged out successfully.' })
+  logout(@Res({ passthrough: true }) response: Response): { message: string } {
+    this.clearAuthCookie(response);
+    return { message: 'Logged out successfully' };
   }
 
   // TODO: Implementar protección con JWT Guard
   // Esta ruta debe estar protegida y solo accesible con token válido
+  /**
+   * Get current user profile
+   * @param {AuthenticatedRequest} req - Authenticated request
+   */
   @Get('me')
-  // TODO: Descomentar y configurar el guard
-  // @UseGuards(AuthGuard('jwt'))
-  // @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'Return user profile.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  getProfile(@Request() req) {
-    // TODO: Una vez implementado el guard, retornar req.user
-    throw new Error('Method not implemented - Implement JWT guard first');
+  async getProfile(@Request() req: AuthenticatedRequest) {
+    try {
+      return await this.authService.getProfile(req.user);
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Could not get user profile');
+    }
+  }
+
+  /**
+   * Sets signed-in token as http-only cookie.
+   * @param {Response} response - Express response
+   * @param {string} accessToken - JWT access token
+   */
+  private setAuthCookie(response: Response, accessToken: string): void {
+    const isProduction: boolean = process.env.NODE_ENV === 'production';
+    response.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 1000,
+    });
+  }
+
+  /**
+   * Clears auth cookie in logout flow.
+   * @param {Response} response - Express response
+   */
+  private clearAuthCookie(response: Response): void {
+    const isProduction: boolean = process.env.NODE_ENV === 'production';
+    response.clearCookie('accessToken', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'strict',
+    });
   }
 }
-
