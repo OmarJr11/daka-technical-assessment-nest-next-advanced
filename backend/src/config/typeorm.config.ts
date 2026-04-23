@@ -18,6 +18,8 @@ export default registerAs(
     // synchronize: true only desarrollo.
     synchronize: process.env.NODE_ENV !== 'production',
 
+    migrations: [join(__dirname, '/../migrations/*{.ts,.js}')],
+
     // Opcional: si quieres ver las consultas SQL en la consola
     logging: process.env.NODE_ENV !== 'production',
   }),

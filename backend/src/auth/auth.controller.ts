@@ -3,20 +3,32 @@ import {
   Get,
   Post,
   Body,
-  UseGuards,
   Request,
-  UnauthorizedException,
+  Res,
+  UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
+import type { Response } from 'express';
+import { User } from './entities/user.entity';
+import { Throttle } from '@nestjs/throttler';
+
+type AuthenticatedRequest = {
+  user: User;
+};
 
 @Controller('auth')
 @ApiTags('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   // TODO: Completar implementación del login
   // Requisitos:
@@ -28,31 +40,68 @@ export class AuthController {
   @ApiOperation({ summary: 'User login' })
   @ApiResponse({ status: 200, description: 'Return access token.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  async login(@Body() loginDto: LoginDto) {
-    // TODO: Implementar lógica de login
-    throw new Error('Method not implemented - Complete this functionality');
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<{ user: User }> {
+    const user = await this.authService.validateUser(
+      loginDto.username,
+      loginDto.password,
+    );
+    const authResult = await this.authService.login(user);
+    this.setAuthCookie(response, authResult.accessToken);
+    return { user: authResult.user };
   }
 
+  /**
+   * Register a new user
+   * @param {RegisterDto} registerDto - Register user dto
+   */
   @Post('register')
   @ApiOperation({ summary: 'User registration' })
-  @ApiResponse({ status: 201, description: 'User successfully registered.' })
+  @ApiResponse({
+    status: 201,
+    description: 'User registered with access token.',
+  })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
-  register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(
+    @Body() registerDto: RegisterDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<{ user: User }> {
+    const authResult = await this.authService.register(registerDto);
+    this.setAuthCookie(response, authResult.accessToken);
+    return { user: authResult.user };
   }
 
   // TODO: Implementar protección con JWT Guard
   // Esta ruta debe estar protegida y solo accesible con token válido
+  /**
+   * Get current user profile
+   * @param {AuthenticatedRequest} req - Authenticated request
+   */
   @Get('me')
-  // TODO: Descomentar y configurar el guard
-  // @UseGuards(AuthGuard('jwt'))
-  // @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'Return user profile.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  getProfile(@Request() req) {
-    // TODO: Una vez implementado el guard, retornar req.user
-    throw new Error('Method not implemented - Implement JWT guard first');
+  async getProfile(@Request() req: AuthenticatedRequest) {
+    return await this.authService.getProfile(req.user);
+  }
+
+  /**
+   * Sets signed-in token as http-only cookie.
+   * @param {Response} response - Express response
+   * @param {string} accessToken - JWT access token
+   */
+  private setAuthCookie(response: Response, accessToken: string): void {
+    const isProduction: boolean = process.env.NODE_ENV === 'production';
+    response.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 1000,
+    });
   }
 }
-

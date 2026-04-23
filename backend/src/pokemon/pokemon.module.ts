@@ -1,16 +1,27 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
 import { PokemonService } from './pokemon.service';
-// TODO: Crear e importar PokemonGateway aquí
-// import { PokemonGateway } from './pokemon.gateway';
 import { PokemonController } from './pokemon.controller';
+import { PokemonProcessor } from './pokemon.processor';
+import { POKEMON_QUEUE_NAME } from './constants/pokemon-queue-name.constant';
+import { AuthModule } from '../auth/auth.module';
+import { PokemonQueueEventsListener } from './pokemon.queue-events.listener';
+import { PokemonGateway } from './pokemon.gateway';
 
 @Module({
+  imports: [
+    AuthModule,
+    BullModule.registerQueue({
+      name: POKEMON_QUEUE_NAME,
+    }),
+  ],
   controllers: [PokemonController],
   providers: [
     PokemonService,
-    // TODO: Agregar PokemonGateway a providers después de crearlo
-    // PokemonGateway,
+    PokemonGateway,
+    PokemonProcessor,
+    PokemonQueueEventsListener,
   ],
   exports: [PokemonService],
 })
-export class PokemonModule { }
+export class PokemonModule {}
