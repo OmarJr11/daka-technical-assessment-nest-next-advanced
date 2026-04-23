@@ -8,4 +8,4 @@ coverage/
 .vscode
 .nyc_output
 k6-results
-backend/storage/
+backend/storage
