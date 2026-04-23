@@ -75,18 +75,16 @@ services:
       - internal-network
 
   frontend:
-    image: node:20-slim
     container_name: frontend-test
-    working_dir: /usr/src/app
-    command: sh -c "npm ci && npm run build && npm run start -- --hostname 0.0.0.0
-      --port 3001"
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runner
     ports:
       - "3001:3001"
-    volumes:
-      - ./frontend:/usr/src/app:ro
-      - frontend_test_node_modules:/usr/src/app/node_modules
     environment:
-      NEXT_PUBLIC_API_URL: http://backend:3000
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_WS_URL: http://localhost:3000
     depends_on:
       backend:
         condition: service_started
@@ -96,7 +94,6 @@ services:
 volumes:
   postgres_test_data:
   redis_test_data:
-  frontend_test_node_modules:
 
 networks:
   internal-network:

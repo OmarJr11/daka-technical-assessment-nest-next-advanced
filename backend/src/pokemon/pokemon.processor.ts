@@ -35,28 +35,33 @@ export class PokemonProcessor extends WorkerHost {
   async process(
     job: Job<PokemonRequestJobData>,
   ): Promise<PokemonRequestJobResult> {
-    await this.ensureStorageDirectoryExists();
-    const pokemonId: number = this.generateRandomPokemonId();
-    const pokemonData: PokeApiResponse = await this.fetchPokemonData({
-      pokemonId,
-    });
-    const imageUrl: string | null = pokemonData.sprites.front_default;
-    if (!imageUrl) {
-      throw new Error(`Sprite image not found for pokemon id ${pokemonId}`);
+    try {
+      await this.ensureStorageDirectoryExists();
+      const pokemonId: number = this.generateRandomPokemonId();
+      const pokemonData: PokeApiResponse = await this.fetchPokemonData({
+        pokemonId,
+      });
+      const imageUrl: string | null = pokemonData.sprites.front_default;
+      if (!imageUrl) {
+        throw new Error(`Sprite image not found for pokemon id ${pokemonId}`);
+      }
+      const imageBuffer: Buffer = await this.fetchImageBuffer({ imageUrl });
+      const fileName: string = `${Date.now()}-${pokemonData.id}.png`;
+      const filePath: string = path.join(this.storagePath, fileName);
+      await writeFile(filePath, imageBuffer);
+      this.logger.log(
+        `Stored sprite ${fileName} for requester ${job.data.requestedBy}`,
+      );
+      return {
+        userId: job.data.userId,
+        pokemonId: pokemonData.id,
+        name: pokemonData.name,
+        fileName,
+      };
+    } catch (error) {
+      this.logger.error('Failed to process pokemon sprite job', error);
+      throw new Error('Could not process pokemon sprite request');
     }
-    const imageBuffer: Buffer = await this.fetchImageBuffer({ imageUrl });
-    const fileName: string = `${Date.now()}-${pokemonData.id}.png`;
-    const filePath: string = path.join(this.storagePath, fileName);
-    await writeFile(filePath, imageBuffer);
-    this.logger.log(
-      `Stored sprite ${fileName} for requester ${job.data.requestedBy}`,
-    );
-    return {
-      userId: job.data.userId,
-      pokemonId: pokemonData.id,
-      name: pokemonData.name,
-      fileName,
-    };
   }
 
   /**
@@ -83,11 +88,23 @@ export class PokemonProcessor extends WorkerHost {
   private async fetchPokemonData(params: {
     pokemonId: number;
   }): Promise<PokeApiResponse> {
-    const { pokemonId } = params;
-    const response = await axios.get<PokeApiResponse>(
-      `${POKEAPI_BASE_URL}/${pokemonId}`,
-    );
-    return response.data;
+    try {
+      const { pokemonId } = params;
+      const response = await axios.get<PokeApiResponse>(
+        `${POKEAPI_BASE_URL}/${pokemonId}`,
+      );
+      if (
+        typeof response.data?.id !== 'number' ||
+        typeof response.data?.name !== 'string' ||
+        !response.data?.sprites
+      ) {
+        throw new Error('Invalid PokeAPI response structure');
+      }
+      return response.data;
+    } catch (error) {
+      this.logger.error('Failed to fetch pokemon metadata from PokeAPI', error);
+      throw new Error('Could not fetch pokemon metadata');
+    }
   }
 
   /**
@@ -98,10 +115,15 @@ export class PokemonProcessor extends WorkerHost {
   private async fetchImageBuffer(params: {
     imageUrl: string;
   }): Promise<Buffer> {
-    const { imageUrl } = params;
-    const response = await axios.get<ArrayBuffer>(imageUrl, {
-      responseType: 'arraybuffer',
-    });
-    return Buffer.from(response.data);
+    try {
+      const { imageUrl } = params;
+      const response = await axios.get<ArrayBuffer>(imageUrl, {
+        responseType: 'arraybuffer',
+      });
+      return Buffer.from(response.data);
+    } catch (error) {
+      this.logger.error('Failed to download pokemon sprite image', error);
+      throw new Error('Could not download pokemon sprite image');
+    }
   }
 }

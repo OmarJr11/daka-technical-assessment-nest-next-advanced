@@ -14,6 +14,7 @@ type ApiErrorResponse = {
 };
 
 type AuthResponse = {
+    accessToken: string;
     user: AuthUser;
 };
 

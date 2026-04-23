@@ -3,8 +3,10 @@ import { NextResponse } from "next/server";
 
 const DASHBOARD_PATH: string = "/dashboard";
 const LOGIN_PATH: string = "/login";
+const REGISTER_PATH: string = "/register";
 const ROOT_PATH: string = "/";
 const AUTH_COOKIE_NAME: string = "accessToken";
+const GUEST_ONLY_PATHS: readonly string[] = [LOGIN_PATH, REGISTER_PATH];
 
 /**
  * Applies route protection and auth redirects based on session cookie.
@@ -22,6 +24,9 @@ export function proxy(request: NextRequest): NextResponse {
 
   if (pathName.startsWith(DASHBOARD_PATH) && !hasSession) {
     return NextResponse.redirect(new URL(LOGIN_PATH, request.url));
+  }
+  if (hasSession && GUEST_ONLY_PATHS.includes(pathName)) {
+    return NextResponse.redirect(new URL(DASHBOARD_PATH, request.url));
   }
 
   return NextResponse.next();

@@ -2,6 +2,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpException,
+  InternalServerErrorException,
   Param,
   Post,
   Query,
@@ -39,8 +41,15 @@ export class PokemonController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all stored pokemons' })
   @ApiResponse({ status: 200, description: 'Returns list of pokemons.' })
-  findAll(@Request() req: AuthenticatedRequest) {
-    return this.pokemonService.findAll({ userId: req.user.id });
+  async findAll(@Request() req: AuthenticatedRequest) {
+    try {
+      return await this.pokemonService.findAll({ userId: req.user.id });
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Could not fetch pokemon sprites');
+    }
   }
 
   @Post('request')
@@ -49,10 +58,19 @@ export class PokemonController {
   @ApiOperation({ summary: 'Enqueue a random pokemon sprite request' })
   @ApiResponse({ status: 201, description: 'Request was enqueued.' })
   async getRandomSprite(@Request() req: AuthenticatedRequest) {
-    return this.pokemonService.enqueueRandomSpriteRequest({
-      userId: req.user.id,
-      requestedBy: 'http-request',
-    });
+    try {
+      return await this.pokemonService.enqueueRandomSpriteRequest({
+        userId: req.user.id,
+        requestedBy: 'http-request',
+      });
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Could not enqueue pokemon sprite request',
+      );
+    }
   }
 
   @Get('storage/:fileName')
@@ -84,8 +102,15 @@ export class PokemonController {
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Delete all pokemons' })
   @ApiResponse({ status: 200, description: 'All pokemons deleted.' })
-  removeAll(@Request() req: AuthenticatedRequest) {
-    return this.pokemonService.removeAll({ userId: req.user.id });
+  async removeAll(@Request() req: AuthenticatedRequest) {
+    try {
+      return await this.pokemonService.removeAll({ userId: req.user.id });
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Could not delete all sprites');
+    }
   }
 
   @Delete(':id')
@@ -94,10 +119,17 @@ export class PokemonController {
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Delete a pokemon sprite' })
   @ApiResponse({ status: 200, description: 'Pokemon sprite deleted.' })
-  remove(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
-    return this.pokemonService.remove({
-      userId: req.user.id,
-      id,
-    });
+  async remove(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    try {
+      return await this.pokemonService.remove({
+        userId: req.user.id,
+        id,
+      });
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Could not delete sprite');
+    }
   }
 }

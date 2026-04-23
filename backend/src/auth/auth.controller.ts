@@ -1,10 +1,13 @@
 import {
+  BadRequestException,
   Controller,
   Get,
+  InternalServerErrorException,
   Post,
   Body,
   Request,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -44,14 +47,24 @@ export class AuthController {
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<{ user: User }> {
-    const user = await this.authService.validateUser(
-      loginDto.username,
-      loginDto.password,
-    );
-    const authResult = await this.authService.login(user);
-    this.setAuthCookie(response, authResult.accessToken);
-    return { user: authResult.user };
+  ): Promise<{ accessToken: string; user: User }> {
+    try {
+      const user = await this.authService.validateUser(
+        loginDto.username,
+        loginDto.password,
+      );
+      const authResult = await this.authService.login(user);
+      this.setAuthCookie(response, authResult.accessToken);
+      return {
+        accessToken: authResult.accessToken,
+        user: authResult.user,
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Could not complete login');
+    }
   }
 
   /**
@@ -66,7 +79,16 @@ export class AuthController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   async register(@Body() registerDto: RegisterDto): Promise<User> {
-    return await this.authService.register(registerDto);
+    try {
+      return await this.authService.register(registerDto);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Could not complete user registration',
+      );
+    }
   }
 
   /**
@@ -95,7 +117,14 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Return user profile.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   async getProfile(@Request() req: AuthenticatedRequest) {
-    return await this.authService.getProfile(req.user);
+    try {
+      return await this.authService.getProfile(req.user);
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Could not get user profile');
+    }
   }
 
   /**
