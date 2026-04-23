@@ -44,10 +44,11 @@ import typeorm from './config/typeorm.config';
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
+        errorMessage: 'Too many requests',
         throttlers: [
           {
-            ttl: configService.get<number>('THROTTLE_TTL') ?? 60000,
-            limit: configService.get<number>('THROTTLE_LIMIT') ?? 10,
+            ttl: configService.get<number>('THROTTLE_TTL') ?? 120000,
+            limit: configService.get<number>('THROTTLE_LIMIT') ?? 20,
           },
         ],
       }),

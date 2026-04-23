@@ -54,13 +54,21 @@ type AuthenticatedSocket = Socket<
  */
 @WebSocketGateway({
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: Array.from(
+      new Set([
+        process.env.FRONTEND_URL || 'http://localhost:3001',
+        'http://localhost:3001',
+        'http://localhost:5173',
+      ]),
+    ),
     credentials: true,
   },
 })
 export class PokemonGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
+  private static readonly USER_ROOM_PREFIX = 'pokemon-user';
+
   @WebSocketServer()
   private readonly server!: Server;
 
@@ -85,6 +93,7 @@ export class PokemonGateway
       await this.authService.getUserById(payload.sub);
       client.data.userId = payload.sub;
       client.data.username = payload.username;
+      client.join(this.getUserRoom({ userId: payload.sub }));
       this.logger.log(`Client connected: ${client.id}`);
     } catch {
       this.logger.warn(`Rejected websocket client: ${client.id}`);
@@ -113,8 +122,15 @@ export class PokemonGateway
   async requestSprite(
     @ConnectedSocket() client: AuthenticatedSocket,
   ): Promise<void> {
+    if (!client.data.userId) {
+      client.emit('sprite-error', {
+        message: 'Unauthorized socket connection',
+      });
+      return;
+    }
     const requestedBy: string = String(client.data.username ?? client.id);
     const enqueueResult = await this.pokemonService.enqueueRandomSpriteRequest({
+      userId: client.data.userId,
       requestedBy,
     });
     client.emit('sprite-requested', enqueueResult);
@@ -131,9 +147,20 @@ export class PokemonGateway
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() payload: SpriteDeletePayload,
   ): Promise<void> {
+    if (!client.data.userId) {
+      client.emit('sprite-error', {
+        message: 'Unauthorized socket connection',
+      });
+      return;
+    }
     try {
-      const result = await this.pokemonService.remove(payload.id);
-      this.server.emit('sprite-deleted', result);
+      const result = await this.pokemonService.remove({
+        userId: client.data.userId,
+        id: payload.id,
+      });
+      this.server
+        .to(this.getUserRoom({ userId: client.data.userId }))
+        .emit('sprite-deleted', result);
     } catch {
       client.emit('sprite-error', { message: 'Could not delete sprite' });
     }
@@ -148,9 +175,19 @@ export class PokemonGateway
   async deleteAllSprites(
     @ConnectedSocket() client: AuthenticatedSocket,
   ): Promise<void> {
+    if (!client.data.userId) {
+      client.emit('sprite-error', {
+        message: 'Unauthorized socket connection',
+      });
+      return;
+    }
     try {
-      const result = await this.pokemonService.removeAll();
-      this.server.emit('sprites-cleared', result);
+      const result = await this.pokemonService.removeAll({
+        userId: client.data.userId,
+      });
+      this.server
+        .to(this.getUserRoom({ userId: client.data.userId }))
+        .emit('sprites-cleared', result);
     } catch {
       client.emit('sprite-error', { message: 'Could not clear sprites' });
     }
@@ -158,11 +195,16 @@ export class PokemonGateway
 
   /**
    * Emit processed sprite to connected clients.
-   * @param {PokemonSpriteResponse} payload - Sprite payload
+   * @param {{ userId: number; payload: PokemonSpriteResponse }} params - Sprite params
    * @returns {void} - No return
    */
-  emitSpriteServed(payload: PokemonSpriteResponse): void {
-    this.server.emit('sprite-served', payload);
+  emitSpriteServed(params: {
+    userId: number;
+    payload: PokemonSpriteResponse;
+  }): void {
+    this.server
+      .to(this.getUserRoom({ userId: params.userId }))
+      .emit('sprite-served', params.payload);
   }
 
   /**
@@ -188,8 +230,50 @@ export class PokemonGateway
     const authorizationHeader: string | undefined =
       client.handshake.headers.authorization;
     if (!authorizationHeader?.startsWith('Bearer ')) {
-      throw new Error('Authorization header missing');
+      const cookieToken: string | null = this.extractTokenFromCookieHeader({
+        cookieHeader: client.handshake.headers.cookie,
+      });
+      if (!cookieToken) {
+        throw new Error('Authorization header and cookie token missing');
+      }
+      return cookieToken;
     }
     return authorizationHeader.replace('Bearer ', '').trim();
+  }
+
+  /**
+   * Extract access token from websocket handshake cookie header.
+   * @param {{ cookieHeader?: string }} params - Cookie header params
+   * @returns {string | null} Access token when present
+   */
+  private extractTokenFromCookieHeader(params: {
+    cookieHeader?: string;
+  }): string | null {
+    const { cookieHeader } = params;
+    if (!cookieHeader) {
+      return null;
+    }
+    const cookieEntries: string[] = cookieHeader.split(';');
+    for (const cookieEntry of cookieEntries) {
+      const [rawName, ...rawValueParts] = cookieEntry.trim().split('=');
+      if (rawName !== 'accessToken') {
+        continue;
+      }
+      const rawValue: string = rawValueParts.join('=').trim();
+      if (!rawValue) {
+        return null;
+      }
+      return decodeURIComponent(rawValue);
+    }
+    return null;
+  }
+
+  /**
+   * Build websocket room name scoped to one user.
+   * @param {{ userId: number }} params - Room params
+   * @returns {string} Room identifier
+   */
+  private getUserRoom(params: { userId: number }): string {
+    return `${PokemonGateway.USER_ROOM_PREFIX}:${params.userId}`;
   }
 }

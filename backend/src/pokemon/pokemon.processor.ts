@@ -52,6 +52,7 @@ export class PokemonProcessor extends WorkerHost {
       `Stored sprite ${fileName} for requester ${job.data.requestedBy}`,
     );
     return {
+      userId: job.data.userId,
       pokemonId: pokemonData.id,
       name: pokemonData.name,
       fileName,

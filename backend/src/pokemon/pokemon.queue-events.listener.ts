@@ -29,7 +29,10 @@ export class PokemonQueueEventsListener extends QueueEventsHost {
    * @returns {void} - No return
    */
   @OnQueueEvent('completed')
-  onCompleted(params: { jobId: string; returnvalue: unknown }): void {
+  async onCompleted(params: {
+    jobId: string;
+    returnvalue: unknown;
+  }): Promise<void> {
     const result: PokemonRequestJobResult | null = this.parseJobResult({
       returnvalue: params.returnvalue,
     });
@@ -41,10 +44,13 @@ export class PokemonQueueEventsListener extends QueueEventsHost {
       });
       return;
     }
-    const spriteResponse = this.pokemonService.registerProcessedSprite({
+    const spriteResponse = await this.pokemonService.registerProcessedSprite({
       result,
     });
-    this.pokemonGateway.emitSpriteServed(spriteResponse);
+    this.pokemonGateway.emitSpriteServed({
+      userId: result.userId,
+      payload: spriteResponse,
+    });
   }
 
   /**
@@ -81,6 +87,7 @@ export class PokemonQueueEventsListener extends QueueEventsHost {
       }
       const candidate = rawValue as Partial<PokemonRequestJobResult>;
       if (
+        typeof candidate.userId !== 'number' ||
         typeof candidate.pokemonId !== 'number' ||
         typeof candidate.name !== 'string' ||
         typeof candidate.fileName !== 'string'
@@ -88,6 +95,7 @@ export class PokemonQueueEventsListener extends QueueEventsHost {
         return null;
       }
       return {
+        userId: candidate.userId,
         pokemonId: candidate.pokemonId,
         name: candidate.name,
         fileName: candidate.fileName,

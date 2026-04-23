@@ -65,13 +65,21 @@ export class AuthController {
     description: 'User registered with access token.',
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
-  async register(
-    @Body() registerDto: RegisterDto,
-    @Res({ passthrough: true }) response: Response,
-  ): Promise<{ user: User }> {
-    const authResult = await this.authService.register(registerDto);
-    this.setAuthCookie(response, authResult.accessToken);
-    return { user: authResult.user };
+  async register(@Body() registerDto: RegisterDto): Promise<User> {
+    return await this.authService.register(registerDto);
+  }
+
+  /**
+   * Logs out the current user by clearing auth cookie.
+   * @param {Response} response - Express response
+   * @returns {{message: string}} Logout response message
+   */
+  @Post('logout')
+  @ApiOperation({ summary: 'User logout' })
+  @ApiResponse({ status: 200, description: 'User logged out successfully.' })
+  logout(@Res({ passthrough: true }) response: Response): { message: string } {
+    this.clearAuthCookie(response);
+    return { message: 'Logged out successfully' };
   }
 
   // TODO: Implementar protección con JWT Guard
@@ -102,6 +110,19 @@ export class AuthController {
       secure: isProduction,
       sameSite: 'strict',
       maxAge: 60 * 60 * 1000,
+    });
+  }
+
+  /**
+   * Clears auth cookie in logout flow.
+   * @param {Response} response - Express response
+   */
+  private clearAuthCookie(response: Response): void {
+    const isProduction: boolean = process.env.NODE_ENV === 'production';
+    response.clearCookie('accessToken', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'strict',
     });
   }
 }

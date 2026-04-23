@@ -5,9 +5,11 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import Redis from 'ioredis';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { unlink } from 'node:fs/promises';
 import * as path from 'node:path';
@@ -20,16 +22,17 @@ import { PokemonSpriteResponse } from './interfaces/pokemon-sprite-response.inte
 
 const SIGNED_URL_TTL_MS = 5 * 60 * 1000;
 const STORAGE_FILE_NAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
+const USER_SPRITES_REDIS_KEY_PREFIX = 'pokemon:sprites:user';
 
 /**
  * Handles pokemon sprite queue operations and signed storage access.
  */
 @Injectable()
-export class PokemonService {
+export class PokemonService implements OnModuleDestroy {
   private readonly logger: Logger = new Logger(PokemonService.name);
   private readonly storagePath: string = path.resolve(process.cwd(), 'storage');
   private readonly storageSecretKey: string;
-  private readonly sprites: PokemonSpriteRecord[] = [];
+  private readonly redisClient: Redis;
 
   constructor(
     @InjectQueue(POKEMON_QUEUE_NAME)
@@ -42,22 +45,32 @@ export class PokemonService {
     if (!secretKey) {
       throw new Error('STORAGE_SECRET_KEY is required');
     }
+    const redisHost: string = process.env.REDIS_HOST || 'localhost';
+    const redisPort: number = Number(process.env.REDIS_PORT) || 6379;
+    const redisPassword: string | undefined =
+      process.env.REDIS_PASSWORD || undefined;
     this.storageSecretKey = secretKey;
+    this.redisClient = new Redis({
+      host: redisHost,
+      port: redisPort,
+      password: redisPassword,
+    });
   }
 
   /**
    * Enqueue random sprite request into Redis queue.
-   * @param {{ requestedBy: string }} params - Queue request params
+   * @param {{ userId: number; requestedBy: string }} params - Queue request params
    * @returns {Promise<{ jobId: string }>} - Queue job identifier
    */
   async enqueueRandomSpriteRequest(params: {
+    userId: number;
     requestedBy: string;
   }): Promise<{ jobId: string }> {
-    const { requestedBy } = params;
+    const { userId, requestedBy } = params;
     try {
       const job = await this.pokemonQueue.add(
         POKEMON_REQUEST_JOB_NAME,
-        { requestedBy },
+        { userId, requestedBy },
         {
           attempts: 3,
           removeOnComplete: true,
@@ -79,11 +92,11 @@ export class PokemonService {
   /**
    * Save processed sprite metadata and return signed access URL.
    * @param {{ result: PokemonRequestJobResult }} params - Processor result
-   * @returns {PokemonSpriteResponse} - Signed sprite response
+   * @returns {Promise<PokemonSpriteResponse>} - Signed sprite response
    */
-  registerProcessedSprite(params: {
+  async registerProcessedSprite(params: {
     result: PokemonRequestJobResult;
-  }): PokemonSpriteResponse {
+  }): Promise<PokemonSpriteResponse> {
     const { result } = params;
     const spriteRecord: PokemonSpriteRecord = {
       id: this.generateSpriteRecordId(),
@@ -92,16 +105,26 @@ export class PokemonService {
       fileName: result.fileName,
       createdAt: Date.now(),
     };
-    this.sprites.unshift(spriteRecord);
+    await this.saveUserSprites({
+      userId: result.userId,
+      records: [
+        spriteRecord,
+        ...(await this.getUserSpriteRecords({ userId: result.userId })),
+      ],
+    });
     return this.toSpriteResponse({ record: spriteRecord });
   }
 
   /**
-   * Return all stored sprites with refreshed signed URLs.
-   * @returns {PokemonSpriteResponse[]} - Sprite list
+   * Return all stored sprites for one user with refreshed signed URLs.
+   * @param {{ userId: number }} params - User filter params
+   * @returns {Promise<PokemonSpriteResponse[]>} - Sprite list
    */
-  findAll(): PokemonSpriteResponse[] {
-    return this.sprites.map((record) => this.toSpriteResponse({ record }));
+  async findAll(params: { userId: number }): Promise<PokemonSpriteResponse[]> {
+    const records: PokemonSpriteRecord[] = await this.getUserSpriteRecords({
+      userId: params.userId,
+    });
+    return records.map((record) => this.toSpriteResponse({ record }));
   }
 
   /**
@@ -142,15 +165,23 @@ export class PokemonService {
 
   /**
    * Delete one stored sprite and its local image file.
-   * @param {string} id - Sprite identifier
+   * @param {{ userId: number; id: string }} params - Deletion params
    * @returns {Promise<{ deleted: boolean; id: string }>} - Deletion result
    */
-  async remove(id: string): Promise<{ deleted: boolean; id: string }> {
-    const index: number = this.sprites.findIndex((item) => item.id === id);
+  async remove(params: {
+    userId: number;
+    id: string;
+  }): Promise<{ deleted: boolean; id: string }> {
+    const { userId, id } = params;
+    const records: PokemonSpriteRecord[] = await this.getUserSpriteRecords({
+      userId,
+    });
+    const index: number = records.findIndex((item) => item.id === id);
     if (index < 0) {
       throw new NotFoundException('Sprite not found');
     }
-    const [record] = this.sprites.splice(index, 1);
+    const [record] = records.splice(index, 1);
+    await this.saveUserSprites({ userId, records });
     const filePath: string = this.getStorageFilePath({
       fileName: record.fileName,
     });
@@ -163,11 +194,17 @@ export class PokemonService {
 
   /**
    * Delete all stored sprites and tracked storage files.
+   * @param {{ userId: number }} params - Deletion params
    * @returns {Promise<{ deleted: boolean; count: number }>} - Deletion result
    */
-  async removeAll(): Promise<{ deleted: boolean; count: number }> {
-    const records: PokemonSpriteRecord[] = [...this.sprites];
-    this.sprites.splice(0, this.sprites.length);
+  async removeAll(params: {
+    userId: number;
+  }): Promise<{ deleted: boolean; count: number }> {
+    const { userId } = params;
+    const records: PokemonSpriteRecord[] = await this.getUserSpriteRecords({
+      userId,
+    });
+    await this.saveUserSprites({ userId, records: [] });
     await Promise.all(
       records.map(async (record) => {
         const filePath: string = this.getStorageFilePath({
@@ -284,5 +321,65 @@ export class PokemonService {
    */
   private generateSpriteRecordId(): string {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  /**
+   * Build Redis key for one user's sprite collection.
+   * @param {{ userId: number }} params - Key params
+   * @returns {string} Redis key
+   */
+  private getUserSpritesRedisKey(params: { userId: number }): string {
+    return `${USER_SPRITES_REDIS_KEY_PREFIX}:${params.userId}`;
+  }
+
+  /**
+   * Read sprite records from Redis for one user.
+   * @param {{ userId: number }} params - Read params
+   * @returns {Promise<PokemonSpriteRecord[]>} Sprite records
+   */
+  private async getUserSpriteRecords(params: {
+    userId: number;
+  }): Promise<PokemonSpriteRecord[]> {
+    const redisKey: string = this.getUserSpritesRedisKey({
+      userId: params.userId,
+    });
+    const serializedRecords: string | null =
+      await this.redisClient.get(redisKey);
+    if (!serializedRecords) {
+      return [];
+    }
+    try {
+      const parsedRecords: unknown = JSON.parse(serializedRecords);
+      if (!Array.isArray(parsedRecords)) {
+        return [];
+      }
+      return parsedRecords as PokemonSpriteRecord[];
+    } catch {
+      this.logger.warn(`Invalid redis sprite payload for key ${redisKey}`);
+      return [];
+    }
+  }
+
+  /**
+   * Persist sprite records in Redis for one user.
+   * @param {{ userId: number; records: PokemonSpriteRecord[] }} params - Save params
+   * @returns {Promise<void>} No return
+   */
+  private async saveUserSprites(params: {
+    userId: number;
+    records: PokemonSpriteRecord[];
+  }): Promise<void> {
+    const redisKey: string = this.getUserSpritesRedisKey({
+      userId: params.userId,
+    });
+    await this.redisClient.set(redisKey, JSON.stringify(params.records));
+  }
+
+  /**
+   * Close Redis client on module shutdown.
+   * @returns {Promise<void>} No return
+   */
+  async onModuleDestroy(): Promise<void> {
+    await this.redisClient.quit();
   }
 }

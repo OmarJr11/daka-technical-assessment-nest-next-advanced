@@ -5,6 +5,7 @@ import {
   Param,
   Post,
   Query,
+  Request,
   Res,
   StreamableFile,
   UseGuards,
@@ -18,8 +19,14 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { createReadStream } from 'node:fs';
 import type { Response } from 'express';
+import { User } from '../auth/entities/user.entity';
+
+type AuthenticatedRequest = {
+  user: User;
+};
 
 @ApiTags('pokemon')
 @Controller('pokemon')
@@ -28,11 +35,12 @@ export class PokemonController {
 
   @Get()
   @UseGuards(AuthGuard('jwt'))
+  @Throttle({ default: { limit: 120, ttl: 60000 } })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all stored pokemons' })
   @ApiResponse({ status: 200, description: 'Returns list of pokemons.' })
-  findAll() {
-    return this.pokemonService.findAll();
+  findAll(@Request() req: AuthenticatedRequest) {
+    return this.pokemonService.findAll({ userId: req.user.id });
   }
 
   @Post('request')
@@ -40,14 +48,15 @@ export class PokemonController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Enqueue a random pokemon sprite request' })
   @ApiResponse({ status: 201, description: 'Request was enqueued.' })
-  async getRandomSprite() {
+  async getRandomSprite(@Request() req: AuthenticatedRequest) {
     return this.pokemonService.enqueueRandomSpriteRequest({
+      userId: req.user.id,
       requestedBy: 'http-request',
     });
   }
 
   @Get('storage/:fileName')
-  @UseGuards(AuthGuard('jwt'))
+  @SkipThrottle()
   @ApiOperation({ summary: 'Get pokemon sprite image by signed URL' })
   @ApiQuery({ name: 'expires', required: true, type: String })
   @ApiQuery({ name: 'signature', required: true, type: String })
@@ -75,8 +84,8 @@ export class PokemonController {
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Delete all pokemons' })
   @ApiResponse({ status: 200, description: 'All pokemons deleted.' })
-  removeAll() {
-    return this.pokemonService.removeAll();
+  removeAll(@Request() req: AuthenticatedRequest) {
+    return this.pokemonService.removeAll({ userId: req.user.id });
   }
 
   @Delete(':id')
@@ -85,7 +94,10 @@ export class PokemonController {
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Delete a pokemon sprite' })
   @ApiResponse({ status: 200, description: 'Pokemon sprite deleted.' })
-  remove(@Param('id') id: string) {
-    return this.pokemonService.remove(id);
+  remove(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    return this.pokemonService.remove({
+      userId: req.user.id,
+      id,
+    });
   }
 }

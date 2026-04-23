@@ -41,7 +41,7 @@ export class AuthService {
    * @param {RegisterDto} registerDto - Register user dto
    * @returns {Promise<AuthResponse>} - Auth response with bearer token
    */
-  async register(registerDto: RegisterDto): Promise<AuthResponse> {
+  async register(registerDto: RegisterDto): Promise<User> {
     const { username, password } = registerDto;
     const existingUser = await this.userRepository.findOne({
       where: { username },
@@ -60,8 +60,7 @@ export class AuthService {
         password: hashedPassword,
       });
       const savedUser: User = await this.userRepository.save(user);
-      const formattedUser = this.formatUser(savedUser);
-      return await this.login(formattedUser);
+      return this.formatUser(savedUser);
     } catch (error) {
       this.logger.error(`Database error details`, error);
       throw new InternalServerErrorException(

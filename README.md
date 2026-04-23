@@ -46,6 +46,13 @@ Copia el archivo de ejemplo y configura tus variables (especialmente `JWT_SECRET
 cp .env.example .env
 ```
 
+Si ejecutas los servicios por separado fuera de Docker, crea también:
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+```
+
 ### 2. Ejecutar en Desarrollo (Hot-Reload)
 
 Para desarrollar, utiliza el archivo `docker-compose.dev.yml`. Este entorno monta el código fuente como volúmenes para permitir hot-reload tanto en backend como frontend.
