@@ -3,7 +3,11 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
-async function bootstrap() {
+/**
+ * Bootstrap the NestJS application with CORS, validation, and Swagger.
+ * @returns {Promise<void>} No return
+ */
+async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   const isProduction: boolean = process.env.NODE_ENV === 'production';
   app.enableCors({

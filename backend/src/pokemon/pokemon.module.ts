@@ -8,6 +8,9 @@ import { AuthModule } from '../auth/auth.module';
 import { PokemonQueueEventsListener } from './pokemon.queue-events.listener';
 import { PokemonGateway } from './pokemon.gateway';
 
+/**
+ * Wires pokemon HTTP, websocket, and async processing providers.
+ */
 @Module({
   imports: [
     AuthModule,

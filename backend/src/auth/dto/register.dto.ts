@@ -2,6 +2,9 @@ import { IsNotEmpty, IsString, Matches, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Match } from '../decorators/match.decorator';
 
+/**
+ * Represents user registration payload with password confirmation.
+ */
 export class RegisterDto {
   @ApiProperty({
     example: 'user123',

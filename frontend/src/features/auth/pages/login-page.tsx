@@ -30,7 +30,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
  * Renders the login view and handles authentication flow.
  * @returns {ReactElement} Login page
  */
-export default function LoginViewPage(): ReactElement {
+export default function LoginPage(): ReactElement {
   const router = useRouter();
   const [apiError, setApiError] = useState<string>("");
   const login = useAuthStore((state) => state.login);

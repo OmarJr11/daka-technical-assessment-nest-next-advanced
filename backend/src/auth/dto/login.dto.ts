@@ -7,6 +7,9 @@ import {
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
+/**
+ * Represents authentication credentials used in login requests.
+ */
 export class LoginDto {
   @ApiProperty({
     example: 'user123',

@@ -9,6 +9,9 @@ import { AuthController } from './auth.controller';
 import { User } from './entities/user.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
+/**
+ * Exposes auth API endpoints and authentication adapters.
+ */
 @Module({
   imports: [
     TypeOrmModule.forFeature([User]),

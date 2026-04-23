@@ -1,5 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, Index } from 'typeorm';
 
+/**
+ * Represents persisted user credentials and identity.
+ */
 @Entity('users', { schema: 'system' })
 export class User {
   @Index({ unique: true })

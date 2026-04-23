@@ -35,7 +35,7 @@ type RegisterFormData = z.infer<typeof registerSchema>;
  * Renders the register view and handles account creation flow.
  * @returns {ReactElement} Register view page
  */
-export default function RegisterViewPage(): ReactElement {
+export default function RegisterPage(): ReactElement {
   const router = useRouter();
   const [apiError, setApiError] = useState<string>("");
   const registerUser = useAuthStore((state) => state.register);

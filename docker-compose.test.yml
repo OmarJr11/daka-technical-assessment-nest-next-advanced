@@ -80,6 +80,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: runner
+    env_file:
+      - ./.env
+      - ./frontend/.env
     ports:
       - "3001:3001"
     environment:

@@ -10,6 +10,9 @@ import { AuthModule } from './auth/auth.module';
 import { PokemonModule } from './pokemon/pokemon.module';
 import typeorm from './config/typeorm.config';
 
+/**
+ * Root Nest module that wires global infrastructure and feature modules.
+ */
 @Module({
   imports: [
     ConfigModule.forRoot({

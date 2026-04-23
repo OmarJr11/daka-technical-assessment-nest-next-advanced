@@ -25,16 +25,25 @@ import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { createReadStream } from 'node:fs';
 import type { Response } from 'express';
 import { User } from '../auth/entities/user.entity';
+import { POKEMON_RESPONSE_MESSAGE } from './constants/pokemon-response-message.constant';
 
 type AuthenticatedRequest = {
   user: User;
 };
 
+/**
+ * Exposes pokemon HTTP endpoints and delegates business logic to services.
+ */
 @ApiTags('pokemon')
 @Controller('pokemon')
 export class PokemonController {
   constructor(private readonly pokemonService: PokemonService) {}
 
+  /**
+   * Return all sprites for the authenticated user.
+   * @param {AuthenticatedRequest} req - Request with authenticated user
+   * @returns {Promise<unknown>} User sprite list
+   */
   @Get()
   @UseGuards(AuthGuard('jwt'))
   @Throttle({ default: { limit: 120, ttl: 60000 } })
@@ -48,10 +57,17 @@ export class PokemonController {
       if (error instanceof HttpException) {
         throw error;
       }
-      throw new InternalServerErrorException('Could not fetch pokemon sprites');
+      throw new InternalServerErrorException(
+        POKEMON_RESPONSE_MESSAGE.fetchSpritesFailed,
+      );
     }
   }
 
+  /**
+   * Enqueue one random sprite request for the authenticated user.
+   * @param {AuthenticatedRequest} req - Request with authenticated user
+   * @returns {Promise<{ jobId: string }>} Enqueued job reference
+   */
   @Post('request')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
@@ -68,11 +84,19 @@ export class PokemonController {
         throw error;
       }
       throw new InternalServerErrorException(
-        'Could not enqueue pokemon sprite request',
+        POKEMON_RESPONSE_MESSAGE.enqueueRequestFailed,
       );
     }
   }
 
+  /**
+   * Serve one sprite file using signed URL parameters.
+   * @param {string} fileName - Storage file name
+   * @param {string} expires - Signed URL expiration timestamp
+   * @param {string} signature - Signed URL hash signature
+   * @param {Response} response - Express response object
+   * @returns {StreamableFile} Streamable sprite image
+   */
   @Get('storage/:fileName')
   @SkipThrottle()
   @ApiOperation({ summary: 'Get pokemon sprite image by signed URL' })
@@ -96,10 +120,14 @@ export class PokemonController {
     return new StreamableFile(stream);
   }
 
+  /**
+   * Delete all sprites for the authenticated user.
+   * @param {AuthenticatedRequest} req - Request with authenticated user
+   * @returns {Promise<{ deleted: boolean; count: number }>} Deletion result
+   */
   @Delete('all')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Delete all pokemons' })
   @ApiResponse({ status: 200, description: 'All pokemons deleted.' })
   async removeAll(@Request() req: AuthenticatedRequest) {
@@ -109,14 +137,21 @@ export class PokemonController {
       if (error instanceof HttpException) {
         throw error;
       }
-      throw new InternalServerErrorException('Could not delete all sprites');
+      throw new InternalServerErrorException(
+        POKEMON_RESPONSE_MESSAGE.deleteAllFailed,
+      );
     }
   }
 
+  /**
+   * Delete one sprite for the authenticated user.
+   * @param {AuthenticatedRequest} req - Request with authenticated user
+   * @param {string} id - Sprite id
+   * @returns {Promise<{ deleted: boolean; id: string }>} Deletion result
+   */
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Delete a pokemon sprite' })
   @ApiResponse({ status: 200, description: 'Pokemon sprite deleted.' })
   async remove(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
@@ -129,7 +164,9 @@ export class PokemonController {
       if (error instanceof HttpException) {
         throw error;
       }
-      throw new InternalServerErrorException('Could not delete sprite');
+      throw new InternalServerErrorException(
+        POKEMON_RESPONSE_MESSAGE.deleteOneFailed,
+      );
     }
   }
 }

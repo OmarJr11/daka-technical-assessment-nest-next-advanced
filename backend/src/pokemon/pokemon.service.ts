@@ -23,6 +23,7 @@ import { PokemonSpriteResponse } from './interfaces/pokemon-sprite-response.inte
 const SIGNED_URL_TTL_MS = 5 * 60 * 1000;
 const STORAGE_FILE_NAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
 const USER_SPRITES_REDIS_KEY_PREFIX = 'pokemon:sprites:user';
+const USER_SPRITES_REDIS_TTL_SECONDS = 30 * 60;
 
 /**
  * Handles pokemon sprite queue operations and signed storage access.
@@ -361,7 +362,7 @@ export class PokemonService implements OnModuleDestroy {
   }
 
   /**
-   * Persist sprite records in Redis for one user.
+   * Persist sprite records in Redis for one user with key expiration.
    * @param {{ userId: number; records: PokemonSpriteRecord[] }} params - Save params
    * @returns {Promise<void>} No return
    */
@@ -372,7 +373,12 @@ export class PokemonService implements OnModuleDestroy {
     const redisKey: string = this.getUserSpritesRedisKey({
       userId: params.userId,
     });
-    await this.redisClient.set(redisKey, JSON.stringify(params.records));
+    await this.redisClient.set(
+      redisKey,
+      JSON.stringify(params.records),
+      'EX',
+      USER_SPRITES_REDIS_TTL_SECONDS,
+    );
   }
 
   /**
