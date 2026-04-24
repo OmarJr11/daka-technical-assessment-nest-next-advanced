@@ -1,101 +1,239 @@
-# Prueba Técnica Full-Stack: NestJS + Next.js + Docker (Advanced Architecture)
+# Prueba Tecnica Full-Stack: NestJS + Next.js + Docker
 
-Bienvenido a la prueba técnica nivel Senior para el rol de Consultor de Tecnología. Este repositorio contiene una base de código moderna pero incompleta funcionalmente, diseñada para evaluar tus habilidades avanzadas en desarrollo Full-Stack, procesamiento asíncrono, contenedores distroless y seguridad.
+Repositorio de la solucion para la prueba tecnica de Tiendas DAKA.
 
----
+## Documentacion de referencia
 
-## 🎯 Objetivo
+- `TECHNICAL_ASSESSMENT.md`: alcance funcional, entregables y criterios.
+- `OWASP_REQUIREMENTS.md`: checklist y practicas de seguridad requeridas.
 
-Tu misión es **completar la implementación** de una aplicación que gestiona autenticación de usuarios y visualización de sprites de Pokémon en tiempo real, siguiendo estrictamente los requerimientos definidos.
+## Stack
 
-No buscamos solo "que funcione", buscamos:
+- Backend: NestJS, TypeORM, PostgreSQL, Redis, BullMQ, Socket.IO.
+- Frontend: Next.js, React, Zustand, React Hook Form, Zod.
+- Infraestructura: Docker, Docker Compose, multi-stage builds.
 
-- **Calidad de código**: Clean Code, SOLID, tipado fuerte.
-- **Seguridad**: Implementación proactiva de OWASP Top 10.
-- **Infraestructura**: Manejo correcto de Docker y variables de entorno.
-- **Manejo de errores**: Robustez ante fallos externos.
+## Estructura del proyecto
 
----
+El proyecto usa una estructura simple por features.
 
-## 📚 Documentación Importante
+### Backend (`backend/src`)
 
-Antes de empezar, es **OBLIGATORIO** leer los siguientes documentos incluidos en este repositorio:
+```text
+src/
+  app.controller.ts
+  app.module.ts
+  app.service.ts
+  main.ts
+  auth/
+    auth.controller.ts
+    auth.module.ts
+    auth.service.ts
+    decorators/
+    dto/
+    entities/
+    responses/
+    strategies/
+  pokemon/
+    pokemon.controller.ts
+    pokemon.gateway.ts
+    pokemon.module.ts
+    pokemon.processor.ts
+    pokemon.queue-events.listener.ts
+    constants/
+    interfaces/
+  config/
+  database/
+  migrations/
+```
 
-1. [`TECHNICAL_ASSESSMENT.md`](./TECHNICAL_ASSESSMENT.md): Contiene las instrucciones detalladas, historias de usuario, criterios de aceptación y guía de entrega.
-2. [`OWASP_REQUIREMENTS.md`](./OWASP_REQUIREMENTS.md): Detalla los requisitos de seguridad **críticos** que debes implementar. Su cumplimiento representa el 25% de la nota.
+Convenciones backend:
 
----
+- Un dominio de negocio por carpeta (`auth`, `pokemon`).
+- Transporte en controllers/gateways y logica de negocio en services.
+- Constantes e interfaces cerca del dominio que las usa.
+- Infraestructura compartida en `config` y `database`.
 
-## 🛠️ Stack Tecnológico Base
+### Frontend (`frontend/src`)
 
-- **Backend**: NestJS, TypeORM, PostgreSQL, Redis (BullMQ).
-- **Frontend**: Next.js (React), Zustand, TailwindCSS, React Hook Form.
-- **Infraestructura**: Docker, Docker Compose (Multi-stage Distroless).
+```text
+src/
+  app/
+    auth-bootstrap.tsx
+    dashboard/page.tsx
+    login/page.tsx
+    register/page.tsx
+    layout.tsx
+    page.tsx
+  features/
+    auth/
+      pages/
+        login-page.tsx
+        register-page.tsx
+    pokemon/
+      dashboard/
+        components/
+        constants/
+        hooks/
+  lib/
+  store/
+  proxy.ts
+```
 
----
+Convenciones frontend:
 
-## 🚀 Cómo Iniciar
+- Archivos de ruta en `app/*` delgados y de orquestacion.
+- Logica y componentes por feature en `features/<feature-name>`.
+- Utilidades globales en `lib` y estado compartido en `store`.
 
-El proyecto ha sido configurado para soportar dos entornos mediante Docker Compose.
+## Requisitos previos
 
-### 1. Configuración de Entorno
+- Docker + Docker Compose.
+- Node.js 20+ (solo si quieres correr sin Docker).
 
-Copia el archivo de ejemplo y configura tus variables (especialmente `JWT_SECRET` y credenciales de DB):
+## Variables de entorno
+
+### 1) Raiz del repositorio
 
 ```bash
 cp .env.example .env
 ```
 
-Si ejecutas los servicios por separado fuera de Docker, crea también:
+Variables principales en `.env`:
+
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `POSTGRES_INITDB_ARGS`
+- `FRONTEND_URL`
+- `REDIS_HOST`
+- `REDIS_PORT`
+- `REDIS_PASSWORD`
+- `STORAGE_SECRET_KEY`
+
+### 2) Backend y Frontend (modo local sin Docker)
 
 ```bash
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-### 2. Ejecutar en Desarrollo (Hot-Reload)
+Variables clave backend:
 
-Para desarrollar, utiliza el archivo `docker-compose.dev.yml`. Este entorno monta el código fuente como volúmenes para permitir hot-reload tanto en backend como frontend.
+- `PORT`
+- `NODE_ENV`
+- `JWT_SECRET`
+- `JWT_EXPIRATION_TIME`
+- `BCRYPT_SALT_ROUNDS`
+- `DATABASE_*`
+- `THROTTLE_TTL`
+- `THROTTLE_LIMIT`
+
+Variables clave frontend:
+
+- `NEXT_PUBLIC_API_BASE_URL`
+- `NEXT_PUBLIC_WS_URL`
+
+## Como ejecutar el proyecto
+
+### Opcion A: Docker desarrollo (hot reload)
 
 ```bash
-# Levantar el entorno de integración
 docker-compose -f docker-compose.dev.yml up --build
 ```
 
-- **Frontend**: <http://localhost:3001>
-- **Backend**: <http://localhost:3000>
-- **Swagger**: <http://localhost:3000/api/docs>
+Servicios:
 
-> **IMPORTANTE**: Deberás completar el archivo `docker-compose.dev.yml` (y los `Dockerfile`) ya que contienen secciones `TODO`.
+- Frontend: <http://localhost:3001>
+- Backend API: <http://localhost:3000>
+- Swagger: <http://localhost:3000/api/docs>
+- PostgreSQL: `localhost:5432`
+- Redis: `localhost:6379`
 
-### 3. Ejecutar en Modo Test/Producción
-
-Para verificar tu entrega final, utiliza `docker-compose.test.yml`. Este entorno simula producción: no monta volúmenes de código, usa imágenes compiladas y optimizadas, y sirve el frontend con Nginx.
+### Opcion B: Docker test/produccion
 
 ```bash
 docker-compose -f docker-compose.test.yml up --build
 ```
 
-- **App**: <http://localhost:80> (o el puerto que configures)
+Servicios:
 
----
+- Frontend: <http://localhost:3001>
+- Backend API: <http://localhost:3000>
 
-## 🧪 Resumen de Tareas Pendientes
+### Opcion C: Ejecucion local (sin Docker)
 
-El código base tiene múltiples comentarios `TODO` guiándote. Las tareas principales son:
+1. Levanta PostgreSQL y Redis.
+2. Configura `backend/.env` y `frontend/.env`.
+3. Instala y ejecuta backend:
 
-1. **Backend Auth**: Completar `AuthService` (login, register), `JwtStrategy` y proteger rutas.
-2. **Backend Pokémon**: Integrar PokeAPI, implementar Colas asíncronas en Redis, Storage Mock con URLs firmadas, y el Gateway de WebSockets.
-3. **Frontend**: Implementar vistas de Login, Registro y Dashboard (actualmente son placeholders).
-4. **Docker**: Configurar correctamente los Dockerfiles multi-stage y las redes en docker-compose.
-5. **Seguridad**: Asegurar la aplicación según `OWASP_REQUIREMENTS.md`.
+```bash
+cd backend
+npm ci
+npm run start:dev
+```
 
----
+4. Instala y ejecuta frontend:
 
-## 📦 Entrega
+```bash
+cd frontend
+npm ci
+npm run dev
+```
 
-1. Asegúrate de que `docker-compose.test.yml` levante todo el stack correctamente.
-2. Incluye un archivo `SOLUTION.md` (opcional) si deseas explicar decisiones técnicas complejas.
-3. Sube tu solución a un repositorio o entrega el archivo comprimido según las instrucciones de RRHH.
+## Pruebas
 
-¡Mucho éxito! Demuestra tu potencial. 🚀
+### Backend
+
+```bash
+cd backend
+npm run test
+npm run test:e2e
+npm run test:cov
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm run test:unit
+npm run test:e2e
+```
+
+## Decisiones tecnicas tomadas
+
+### Autenticacion y sesiones
+
+- Se uso `bcrypt` para hash de contrasenas con `BCRYPT_SALT_ROUNDS`.
+- Se usa JWT con expiracion (`JWT_EXPIRATION_TIME`) y secret por variable de entorno.
+- Se eligio cookie `httpOnly` (`accessToken`) en login para reducir exposicion a XSS.
+- La estrategia JWT permite token tanto por `Authorization: Bearer` como por cookie.
+- Se implemento endpoint de logout para invalidar sesion del cliente (clear cookie).
+
+### Seguridad (OWASP)
+
+- Validacion de payloads con DTO + `class-validator`.
+- `ValidationPipe` global con `whitelist`, `forbidNonWhitelisted` y `transform`.
+- CORS restringido por origen configurable (`FRONTEND_URL`) y `credentials: true`.
+- Errores controlados con excepciones HTTP y logging interno.
+- WebSocket con validacion de JWT al conectar y desconexion si el token no es valido.
+- Rate limiting en login para mitigar fuerza bruta.
+
+### Pokemon en tiempo real
+
+- Las solicitudes de sprite se encolan en Redis con BullMQ.
+- El worker descarga el sprite y lo guarda en storage local (`./storage`).
+- El backend no expone URL directa de PokeAPI; genera URL firmada con expiracion.
+- Las respuestas se emiten por WebSocket a una sala por usuario autenticado.
+
+### Infraestructura
+
+- Compose de desarrollo con volumenes para hot reload.
+- Compose de test/produccion sin montar codigo fuente.
+- Healthchecks para PostgreSQL y Redis.
+- Dependencias entre servicios usando `condition: service_healthy` donde aplica.
+
+## Notas de entrega
+
+- Se incluye documentacion de ejecucion y decisiones en este `README.md`.
+- Si se requiere detalle extendido por modulo, se puede complementar en `SOLUTION.md`.
